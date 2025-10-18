@@ -273,13 +273,13 @@ Results are saved to `$OUTDIR/eval/`:
 
 ### Benchmark Figures
 
-Recent CAMI runs produce the following aggregate plots (generated under `bench/out/`):
+Recent CAMI runs produce the following aggregate plots (generated under `results/bench/` (and reproduced under `bench/out/` when rerunning)):
 
-![CAMI Runtime, CPU, and Memory](bench/out/fig_runtime_cpu_mem.png)
+![CAMI Runtime, CPU, and Memory](results/bench/fig_runtime_cpu_mem.png)
 
-![Ranked F1 Scores](bench/out/fig_f1_by_rank.png)
+![Ranked F1 Scores](results/bench/fig_f1_by_rank.png)
 
-![Peak Memory By Tool](bench/out/fig_peak_memory_by_tool.png)
+![Peak Memory By Tool](results/bench/fig_peak_memory_by_tool.png)
 
 ### Configuration
 
