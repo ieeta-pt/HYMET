@@ -80,6 +80,14 @@ Outputs:
 - Predictions: `case/out/gut_case/hymet/`
 - No truth metrics (manifest has empty truth columns). Use cross-tool comparisons or MetaPhlAn (requires larger RAM) if a proxy check is needed.
 
+### 2.3 Visual Summary
+
+![HYMET runtime and memory](out/figures/fig_case_runtime.png)
+
+![Top taxa per sample](out/figures/fig_case_top_taxa_panels.png)
+
+![Top taxon overlap heatmap](out/figures/fig_case_top_taxa_heatmap.png)
+
 
 ## 3. Database Ablation
 
