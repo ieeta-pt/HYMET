@@ -15,8 +15,9 @@ The scripts expect to run from `HYMET/testdataset/` and create output under `HYM
 1. `filterGCF.py` – filters downloaded GCF FASTA files (requires Biopython).  
    Usage example: `python filterGCF.py input_dir output_dir`
 
-2. `mutationGCF.py` – introduces synthetic mutations into FASTA sequences.  
-   Usage: `python mutationGCF.py input.fna output.fna --mutation-rate 0.01`
+2. `simulate_mutations.py` – reproducibly introduce substitutions (and optional short indels) into a FASTA.  
+   Usage: `python simulate_mutations.py --fasta input.fna --output mutated.fna --sub-rate 0.1 --indel-rate 0.01 --max-indel-length 3 --seed 1337`
+   (The older `mutationGCF.py` remains for interactive testing but is superseded by this CLI.)
 
 3. `extractTaxonomy.py` – pulls taxonomy metadata via NCBI Entrez (set `ENTREZ_EMAIL`).
 
