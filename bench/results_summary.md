@@ -80,10 +80,10 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 
 | Sample        | Tool      | Rank        | F1 (%) | Notes |
 |---------------|-----------|-------------|-------:|-------|
-| `cami_i_hc`   | HYMET     | species     | 71.43  | 10 TP / 4 FP / 4 FN — improved after species-level candidate capping. |
-| `cami_i_lc`   | HYMET     | species     | 63.16  | 6 TP / 5 FP / 2 FN — compact 147-genome reference. |
-| `cami_sample_0` | HYMET   | species     | 23.68  | 9 TP / 46 FP / 12 FN — wide community still noisy but uses 85% fewer genomes (744 vs 5 000). |
-| `cami_i_lc`   | MetaPhlAn4 | species    | 0.00   | Run completes with fallback logic; profile is header-only for this subset. |
+| `cami_i_hc`   | HYMET     | species     | 11.76  | 2 TP / 18 FP / 12 FN — high FP rate persists even after capping Mash hits to 235 candidates. |
+| `cami_i_lc`   | HYMET     | species     | 42.11  | 4 TP / 7 FP / 4 FN — compact 147-genome reference; recall remains moderate. |
+| `cami_sample_0` | HYMET   | species     | 2.67   | 1 TP / 53 FP / 20 FN — broad mock community remains noisy even after shrinking to 744 candidates (from 5 000). |
+| `cami_i_lc`   | MetaPhlAn4 | species    | 0.00   | Run completes with fallback logic; profile stays header-only on this subset. |
 
 Refer to `bench/out/summary_per_tool_per_sample.tsv` for the complete table across ranks and samples.
 
