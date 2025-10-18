@@ -77,10 +77,10 @@ def parse_wall(value: str) -> float:
     return h * 3600.0 + m * 60.0 + s
 
 with open(time_log) as fh:
-    for line in fh:
-        if ":" not in line:
+    for raw in fh:
+        if ": " not in raw:
             continue
-        key, val = line.split(":", 1)
+        key, val = raw.split(": ", 1)
         key = key.strip()
         val = val.strip()
         if key in metrics:
