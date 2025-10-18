@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
+import textwrap
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -103,31 +104,37 @@ def format_duration(seconds: float) -> str:
 
 
 def plot_runtime(results: List[SampleResult]) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), gridspec_kw={"wspace": 0.25})
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
     palette = sns.color_palette("deep", len(results))
     names = [r.display_name for r in results]
 
     wall_minutes = np.array([r.runtime_wall / 60.0 for r in results])
-    cpu_minutes = np.array([r.runtime_cpu / 60.0 for r in results])
     mem_gb = np.array([r.runtime_rss for r in results])
 
-    axes[0].barh(names, wall_minutes, color=palette)
+    def annotate(ax, bars, values, formatter):
+        threshold = values.max() * 0.25 if values.size else 0
+        for bar, val in zip(bars, values):
+            y = bar.get_y() + bar.get_height() / 2
+            text = formatter(val)
+            if val > threshold:
+                ax.text(val - values.max() * 0.02, y, text, va="center", ha="right",
+                        fontsize=10, weight="semibold", color="white")
+            else:
+                ax.text(val + values.max() * 0.05, y, text, va="center", ha="left",
+                        fontsize=10, color="#1c2333")
+
+    bars = axes[0].barh(names, wall_minutes, color=palette, edgecolor="white")
     axes[0].set_xlabel("Wall-clock Time (minutes)")
     axes[0].set_title("HYMET runtime per sample")
-    for bar, val in zip(axes[0].patches, wall_minutes):
-        axes[0].text(val + wall_minutes.max() * 0.02, bar.get_y() + bar.get_height() / 2,
-                     format_duration(val * 60.0), va="center", fontsize=10)
+    annotate(axes[0], bars, wall_minutes, lambda v: format_duration(v * 60.0))
 
-    axes[1].barh(names, mem_gb, color=palette)
+    bars_mem = axes[1].barh(names, mem_gb, color=palette, edgecolor="white")
     axes[1].set_xlabel("Peak Resident Set Size (GB)")
     axes[1].set_title("Memory footprint")
-    for bar, val in zip(axes[1].patches, mem_gb):
-        axes[1].text(val + mem_gb.max() * 0.03, bar.get_y() + bar.get_height() / 2,
-                     f"{val:.2f} GB", va="center", fontsize=10)
+    annotate(axes[1], bars_mem, mem_gb, lambda v: f"{v:.2f} GB")
 
     sns.despine(fig)
-    fig.suptitle("HYMET Case Study – Performance Summary", fontsize=14, weight="semibold")
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.suptitle("HYMET Case Study – Performance Summary", fontsize=15, weight="semibold")
     fig.savefig(FIG_ROOT / "fig_case_runtime.png", dpi=300)
     plt.close(fig)
 
@@ -136,14 +143,15 @@ def taxon_label(entry: Dict[str, str]) -> str:
     label = entry["label"]
     if "|" in label:
         label = label.split("|")[-1]
-    return label.replace("_", " ")
+    label = label.replace("_", " ")
+    return textwrap.shorten(label, width=32, placeholder="…")
 
 
 def plot_top_taxa_panels(results: List[SampleResult]) -> None:
     if not results:
         return
     n = len(results)
-    fig, axes = plt.subplots(n, 1, figsize=(11, 3.5 * n))
+    fig, axes = plt.subplots(n, 1, figsize=(11, 3.2 * n), constrained_layout=True)
     if n == 1:
         axes = [axes]
     palette = sns.color_palette("Spectral", MAX_TAXA)
@@ -155,17 +163,21 @@ def plot_top_taxa_panels(results: List[SampleResult]) -> None:
             continue
         labels = [taxon_label(t) for t in taxa][::-1]
         values = [t["pct"] for t in taxa][::-1]
-        bars = ax.barh(labels, values, color=palette[:len(values)])
+        bars = ax.barh(labels, values, color=palette[:len(values)], edgecolor="white")
         ax.set_xlabel("Relative abundance (%)")
-        ax.set_xlim(0, max(values) * 1.1)
-        ax.set_title(f"{sample.display_name}: Top {len(values)} taxa", loc="left", weight="semibold")
+        ax.set_xlim(0, max(values) * 1.05)
+        ax.set_title(f"{sample.display_name} – Top {len(values)} taxa", loc="left", weight="semibold")
         for bar, val in zip(bars, values):
-            ax.text(val + max(values) * 0.01,
-                    bar.get_y() + bar.get_height() / 2,
-                    f"{val:.2f}", va="center", fontsize=9)
+            xpos = bar.get_width()
+            y = bar.get_y() + bar.get_height() / 2
+            if xpos > max(values) * 0.6:
+                ax.text(xpos - max(values) * 0.02, y, f"{val:.2f}", va="center", ha="right",
+                        fontsize=9, color="white", weight="semibold")
+            else:
+                ax.text(xpos + max(values) * 0.02, y, f"{val:.2f}", va="center", ha="left",
+                        fontsize=9, color="#1c2333")
         sns.despine(ax=ax, left=True)
 
-    fig.tight_layout()
     fig.savefig(FIG_ROOT / "fig_case_top_taxa_panels.png", dpi=300)
     plt.close(fig)
 
@@ -180,19 +192,19 @@ def plot_taxa_heatmap(results: List[SampleResult]) -> None:
             i = taxa_names.index(taxon_label(t))
             data[i, j] = t["pct"]
 
-    fig, ax = plt.subplots(figsize=(10, 0.35 * len(taxa_names) + 2))
+    fig, ax = plt.subplots(figsize=(10, 0.45 * len(taxa_names) + 1.5), constrained_layout=True)
     sns.heatmap(data,
                 annot=True,
                 fmt=".1f",
-                cmap="mako",
-                linewidths=0.5,
+                cmap="rocket_r",
+                annot_kws={"fontsize": 9, "color": "black"},
+                linewidths=0.4,
                 linecolor="white",
                 cbar_kws={"label": "Relative abundance (%)"},
                 ax=ax)
-    ax.set_xticklabels([r.display_name for r in results], rotation=45, ha="right")
+    ax.set_xticklabels([r.display_name for r in results], rotation=30, ha="right")
     ax.set_yticklabels(taxa_names, rotation=0)
     ax.set_title("Top taxa overlap across case-study samples", loc="left", weight="semibold")
-    fig.tight_layout()
     fig.savefig(FIG_ROOT / "fig_case_top_taxa_heatmap.png", dpi=300)
     plt.close(fig)
 
