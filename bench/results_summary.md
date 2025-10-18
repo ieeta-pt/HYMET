@@ -31,35 +31,10 @@ bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrif
 cd HYMET/bench
 
 # one-time helper: derive a taxonomy table for the shared FASTA
-python - <<'PY'
-import subprocess, pathlib
-from collections import OrderedDict
-fasta = pathlib.Path('HYMET/bench/refsets/combined_subset.fasta')
-tax_dir = pathlib.Path('HYMET/taxonomy_files')
-name_to_ids = OrderedDict()
-with fasta.open() as fh:
-    for line in fh:
-        if line.startswith('>'):
-            rest = line[1:].strip()
-            seq_id, _, trailing = rest.partition(' ')
-            clean = trailing.split(',', 1)[0]
-            tokens = [tok for tok in clean.split() if tok]
-            name = ' '.join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else seq_id)
-            name_to_ids.setdefault(name, []).append(seq_id)
-proc = subprocess.run(
-    ['taxonkit','name2taxid','--data-dir',str(tax_dir),'--show-rank'],
-    input='\n'.join(name_to_ids.keys())+'\n', text=True, capture_output=True, check=True
-)
-name2tax = {line.split('\t')[0]: line.split('\t')[1] for line in proc.stdout.strip().split('\n') if line}
-out = pathlib.Path('HYMET/data/detailed_taxonomy.tsv')
-out.parent.mkdir(parents=True, exist_ok=True)
-with out.open('w') as fh:
-    fh.write('GCF\tTaxID\tIdentifiers\n')
-    for name, ids in name_to_ids.items():
-        taxid = name2tax.get(name, '0')
-        fh.write(f"FAKE_{taxid}\t{taxid}\t{';'.join(ids)}\n")
-print(f'Wrote {out}')
-PY
+python bench/tools/make_refset_taxonomy.py \
+  --fasta bench/refsets/combined_subset.fasta \
+  --taxonkit-db taxonomy_files \
+  --output data/detailed_taxonomy.tsv
 
 THREADS=16 \
 CACHE_ROOT=data/downloaded_genomes/cache_bench \
