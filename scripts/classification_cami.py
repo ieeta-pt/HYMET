@@ -252,14 +252,16 @@ def _weighted_lca(taxid_weights):
     """
     taxid_weights: dict taxid -> weight
     Use _HIER (taxid -> names-by-rank) to compute a weighted consensus lineage.
-    Returns: (lineage_str, level, confidence)
+    Returns: (lineage_str, level, confidence, representative_taxid)
     """
     total_w = sum(taxid_weights.values())
     if total_w <= 0:
-        return "Unknown", "root", 0.0
+        return "Unknown", "root", 0.0, None
 
     chosen = []
     conf_product = 1.0
+    best_taxid = None
+    best_weight = -1.0
 
     for r_idx, rank in enumerate(RANKS):
         # gather weights per name at this rank
@@ -281,11 +283,15 @@ def _weighted_lca(taxid_weights):
         conf_product *= conf_i
 
     if not chosen:
-        return "Unknown", "root", 0.0
+        return "Unknown", "root", 0.0, None
 
     lineage_str = "; ".join(f"{RANKS[i]}:{name}" for i, name in enumerate(chosen))
     level = RANKS[len(chosen) - 1]
-    return lineage_str, level, min(conf_product, 1.0)
+    for tid, weight in taxid_weights.items():
+        if weight > best_weight:
+            best_taxid = tid
+            best_weight = weight
+    return lineage_str, level, min(conf_product, 1.0), best_taxid
 
 def _process_one(task):
     """
@@ -303,9 +309,10 @@ def _process_one(task):
         w = cov * _REF_ABUND.get(tname, 1)
         tw[tid] += w
     if not any_hit:
-        return (q, "Unknown", "root", 0.0)
-    lineage, level, conf = _weighted_lca(tw)
-    return (q, lineage, level, conf)
+        return (q, "Unknown", "root", "Unknown", 0.0)
+    lineage, level, conf, rep_tid = _weighted_lca(tw)
+    tid_out = rep_tid if rep_tid is not None else "Unknown"
+    return (q, lineage, level, tid_out, conf)
 
 # -------- main driver --------
 
@@ -320,23 +327,14 @@ def main_process(paf_file, taxonomy_file, hierarchy_file, output_file, processes
         for res in pool.imap_unordered(_process_one, tasks, chunksize=200):
             results.append(res)
 
-    classified = sum(1 for _, lin, _, _ in results if lin != "Unknown")
+    classified = sum(1 for _, lin, tid, _, _ in results if lin != "Unknown" and tid != "Unknown")
+    resdict = {q: (lin, lvl, tid, conf) for q, lin, lvl, tid, conf in results}
     with open(output_file, 'w', newline='') as f:
         w = csv.writer(f, delimiter='\t')
-        w.writerow(['Query', 'Lineage', 'Taxonomic Level', 'Confidence'])
-        # Stable order: write in original query_map order
+        w.writerow(['Query', 'Lineage', 'Taxonomic Level', 'TaxID', 'Confidence'])
         for q in query_map.keys():
-            # find result for q
-            # (results came unordered; index them quickly)
-            pass
-    # faster: build dict then write in order
-    resdict = {q: (lin, lvl, conf) for q, lin, lvl, conf in results}
-    with open(output_file, 'w', newline='') as f:
-        w = csv.writer(f, delimiter='\t')
-        w.writerow(['Query', 'Lineage', 'Taxonomic Level', 'Confidence'])
-        for q in query_map.keys():
-            lin, lvl, conf = resdict.get(q, ("Unknown", "root", 0.0))
-            w.writerow([q, lin, lvl, f"{conf:.4f}"])
+            lin, lvl, tid, conf = resdict.get(q, ("Unknown", "root", "Unknown", 0.0))
+            w.writerow([q, lin, lvl, tid, f"{conf:.4f}"])
 
     total = len(results)
     logging.info(f"Classification complete. Results saved to {output_file}")
