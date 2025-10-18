@@ -31,35 +31,10 @@ bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrif
 cd HYMET/bench
 
 # one-time helper: derive a taxonomy table for the shared FASTA
-python - <<'PY'
-import subprocess, pathlib
-from collections import OrderedDict
-fasta = pathlib.Path('HYMET/bench/refsets/combined_subset.fasta')
-tax_dir = pathlib.Path('HYMET/taxonomy_files')
-name_to_ids = OrderedDict()
-with fasta.open() as fh:
-    for line in fh:
-        if line.startswith('>'):
-            rest = line[1:].strip()
-            seq_id, _, trailing = rest.partition(' ')
-            clean = trailing.split(',', 1)[0]
-            tokens = [tok for tok in clean.split() if tok]
-            name = ' '.join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else seq_id)
-            name_to_ids.setdefault(name, []).append(seq_id)
-proc = subprocess.run(
-    ['taxonkit','name2taxid','--data-dir',str(tax_dir),'--show-rank'],
-    input='\n'.join(name_to_ids.keys())+'\n', text=True, capture_output=True, check=True
-)
-name2tax = {line.split('\t')[0]: line.split('\t')[1] for line in proc.stdout.strip().split('\n') if line}
-out = pathlib.Path('HYMET/data/detailed_taxonomy.tsv')
-out.parent.mkdir(parents=True, exist_ok=True)
-with out.open('w') as fh:
-    fh.write('GCF\tTaxID\tIdentifiers\n')
-    for name, ids in name_to_ids.items():
-        taxid = name2tax.get(name, '0')
-        fh.write(f"FAKE_{taxid}\t{taxid}\t{';'.join(ids)}\n")
-print(f'Wrote {out}')
-PY
+python bench/tools/make_refset_taxonomy.py \
+  --fasta bench/refsets/combined_subset.fasta \
+  --taxonkit-db taxonomy_files \
+  --output data/detailed_taxonomy.tsv
 
 THREADS=16 \
 CACHE_ROOT=data/downloaded_genomes/cache_bench \
@@ -80,10 +55,10 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 
 | Sample        | Tool      | Rank        | F1 (%) | Notes |
 |---------------|-----------|-------------|-------:|-------|
-| `cami_i_hc`   | HYMET     | species     | 71.43  | 10 TP / 4 FP / 4 FN — improved after species-level candidate capping. |
-| `cami_i_lc`   | HYMET     | species     | 63.16  | 6 TP / 5 FP / 2 FN — compact 147-genome reference. |
-| `cami_sample_0` | HYMET   | species     | 23.68  | 9 TP / 46 FP / 12 FN — wide community still noisy but uses 85% fewer genomes (744 vs 5 000). |
-| `cami_i_lc`   | MetaPhlAn4 | species    | 0.00   | Run completes with fallback logic; profile is header-only for this subset. |
+| `cami_i_hc`   | HYMET     | species     | 11.76  | 2 TP / 18 FP / 12 FN — high FP rate persists even after capping Mash hits to 235 candidates. |
+| `cami_i_lc`   | HYMET     | species     | 42.11  | 4 TP / 7 FP / 4 FN — compact 147-genome reference; recall remains moderate. |
+| `cami_sample_0` | HYMET   | species     | 2.67   | 1 TP / 53 FP / 20 FN — broad mock community remains noisy even after shrinking to 744 candidates (from 5 000). |
+| `cami_i_lc`   | MetaPhlAn4 | species    | 0.00   | Run completes with fallback logic; profile stays header-only on this subset. |
 
 Refer to `bench/out/summary_per_tool_per_sample.tsv` for the complete table across ranks and samples.
 

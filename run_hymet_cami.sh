@@ -195,10 +195,46 @@ if [ "$ROWS" -lt 2 ]; then
 
   # Convert mini_classify output to HYMET format if needed
   if [ -s "$WORKDIR/fallback_classified.tsv" ]; then
-    # Simple conversion: add Lineage, Taxonomic Level, Confidence columns
-    awk -F'\t' 'BEGIN{OFS="\t"; print "Query\tLineage\tTaxonomic Level\tConfidence"} 
-                 NR>1{print $1, "unknown", "unknown", "1.0000"}' \
-        "$WORKDIR/fallback_classified.tsv" > output/classified_sequences.tsv
+    python3 - "$WORKDIR/fallback_classified.tsv" data/taxonomy_hierarchy.tsv output/classified_sequences.tsv <<'PY'
+import csv, sys
+
+src, hier, dest = sys.argv[1:4]
+rank_order = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'strain']
+
+def determine_level(lineage: str) -> str:
+    if not lineage or lineage.lower() == 'unknown':
+        return 'root'
+    level = 'root'
+    for part in lineage.split(';'):
+        part = part.strip()
+        if ':' not in part:
+            continue
+        rank, _ = part.split(':', 1)
+        rank = rank.strip().lower()
+        if rank in rank_order:
+            level = rank
+    return level
+
+hierarchy = {}
+with open(hier, newline='') as fh:
+    reader = csv.DictReader(fh, delimiter='\t')
+    for row in reader:
+        tid = (row.get('TaxID') or '').strip()
+        lineage = (row.get('Lineage') or '').strip() or 'Unknown'
+        if tid:
+            hierarchy[tid] = lineage
+
+with open(src, newline='') as inp, open(dest, 'w', newline='') as outp:
+    reader = csv.DictReader(inp, delimiter='\t')
+    writer = csv.writer(outp, delimiter='\t')
+    writer.writerow(['Query', 'Lineage', 'Taxonomic Level', 'TaxID', 'Confidence'])
+    for row in reader:
+        query = row.get('qname') or row.get('Query') or ''
+        taxid = (row.get('taxid') or '').strip() or 'Unknown'
+        lineage = hierarchy.get(taxid, 'Unknown')
+        level = determine_level(lineage)
+        writer.writerow([query, lineage, level, taxid, '1.0000'])
+PY
   fi
 
   ROWS=$(wc -l < output/classified_sequences.tsv 2>/dev/null || echo 0)

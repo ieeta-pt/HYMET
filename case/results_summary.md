@@ -80,6 +80,14 @@ Outputs:
 - Predictions: `case/out/gut_case/hymet/`
 - No truth metrics (manifest has empty truth columns). Use cross-tool comparisons or MetaPhlAn (requires larger RAM) if a proxy check is needed.
 
+### 2.3 Visual Summary
+
+![HYMET runtime and memory](out/figures/fig_case_runtime.png)
+
+![Top taxa per sample](out/figures/fig_case_top_taxa_panels.png)
+
+![Top taxon overlap heatmap](out/figures/fig_case_top_taxa_heatmap.png)
+
 
 ## 3. Database Ablation
 
@@ -128,32 +136,11 @@ THREADS=1 CACHE_ROOT=data/downloaded_genomes/cache_case ./run_case.sh --manifest
 
 # 2) Replace the cache entry with the curated panel
 CACHE_DIR=data/downloaded_genomes/cache_case/<sha1_from_log>
-gunzip -c HYMET/case/truth/zymo_refs/zymo_refs.fna.gz > HYMET/case/truth/zymo_refs/zymo_refs.fna
-python - <<'PY'
-from pathlib import Path, defaultdict
-import csv
-cache = Path("data/downloaded_genomes/cache_case/<sha1>")
-src = Path("HYMET/case/truth/zymo_refs/zymo_refs.fna")
-seqmap = Path("HYMET/case/truth/zymo_refs/seqid2taxid.tsv")
-cache.mkdir(parents=True, exist_ok=True)
-(cache/"combined_genomes.fasta").write_text(src.read_text())
-for idx in cache.glob("reference.mmi"): idx.unlink()
-tax = defaultdict(list)
-with seqmap.open() as fh:
-    reader = csv.reader(fh, delimiter="\t")
-    seq2tax = dict(reader)
-with src.open() as fh:
-    for line in fh:
-        if line.startswith(">"):
-            seq = line[1:].split()[0]
-            taxid = seq2tax.get(seq)
-            if taxid:
-                tax[taxid].append(seq)
-with (cache/"detailed_taxonomy.tsv").open("w") as out:
-    out.write("GCF\tTaxID\tIdentifiers\n")
-    for taxid, seqs in sorted(tax.items(), key=lambda x: int(x[0])):
-        out.write(f"ZymoTax_{taxid}\t{taxid}\t{';'.join(seqs)}\n")
-PY
+python case/tools/preload_cache_from_fasta.py \
+  --cache-dir "${CACHE_DIR}" \
+  --fasta case/truth/zymo_refs/zymo_refs.fna.gz \
+  --seqmap case/truth/zymo_refs/seqid2taxid.tsv \
+  --taxid-prefix ZymoTax
 
 # 3) Rerun the case study (no download triggered)
 THREADS=8 CACHE_ROOT=data/downloaded_genomes/cache_case ./run_case.sh --manifest manifest_zymo.tsv --out out_zymo_curated
