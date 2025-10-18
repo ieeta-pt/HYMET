@@ -129,7 +129,12 @@ def accumulate(
     taxid_records: List[str],
     lineage_records: List[Dict[str, str]],
     taxdb: str,
-) -> Tuple[Dict[str, Dict[str, int]], Dict[str, int], Dict[str, Dict[str, object]]]:
+) -> Tuple[
+    Dict[str, Dict[str, int]],
+    Dict[str, int],
+    Dict[str, Dict[str, object]],
+    Dict[str, str],
+]:
     counts = {rank: defaultdict(int) for rank in RANKS}
     totals = {rank: 0 for rank in RANKS}
 
@@ -163,14 +168,14 @@ def accumulate(
         if not info:
             continue
         names_list = info.get("names_list", [])
-        for idx, nm in enumerate(names_list[:len(RANKS)]):
+        for idx, nm in enumerate(names_list[: len(RANKS)]):
             if not nm:
                 continue
             rank = RANKS[idx]
             counts[rank][tid] += 1
             totals[rank] += 1
 
-    return counts, totals, taxid2path
+    return counts, totals, taxid2path, name2tid
 
 
 def emit_cami(counts: Dict[str, Dict[str, int]], totals: Dict[str, int], taxid2path: Dict[str, Dict[str, object]]) -> None:
@@ -205,22 +210,23 @@ def main() -> None:
     taxdb = os.environ.get("TAXONKIT_DB", str(Path(__file__).resolve().parents[1] / "taxonomy_files"))
     print(f"[hymet2cami] using taxonomy DB at {taxdb}", file=sys.stderr)
 
-    records = load_records(input_path)
-    print(f"[hymet2cami] parsed {len(records)} lineages", file=sys.stderr)
+    taxid_records, lineage_records = load_records(input_path)
+    print(
+        f"[hymet2cami] parsed {len(lineage_records)} lineage rows + {len(taxid_records)} direct taxid rows",
+        file=sys.stderr,
+    )
 
     all_names = set()
-    for parsed in records:
+    for parsed in lineage_records:
         for name in parsed.values():
             if name:
                 all_names.add(name)
 
     print(f"[hymet2cami] converting {len(all_names)} unique taxon names", file=sys.stderr)
-    name2tid = batch_name2taxid(all_names, taxdb)
-    print(f"[hymet2cami] mapped {len(name2tid)} names to taxids", file=sys.stderr)
 
-    counts, totals, needed_taxids = accumulate(records, name2tid)
-    print(f"[hymet2cami] converting {len(needed_taxids)} taxids to paths", file=sys.stderr)
-    taxid2path = batch_taxpath(needed_taxids, taxdb)
+    counts, totals, taxid2path, name2tid = accumulate(taxid_records, lineage_records, taxdb)
+    print(f"[hymet2cami] mapped {len(name2tid)} names to taxids", file=sys.stderr)
+    print(f"[hymet2cami] converting {len(taxid2path)} taxids to paths", file=sys.stderr)
 
     emit_cami(counts, totals, taxid2path)
     print("[hymet2cami] done", file=sys.stderr)
