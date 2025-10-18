@@ -254,6 +254,16 @@ Results are saved to `$OUTDIR/eval/`:
 - `contigs_per_rank.tsv` - Contig-level accuracy by taxonomic rank
 - `summary.txt` - Human-readable results summary
 
+### Benchmark Figures
+
+Recent CAMI runs produce the following aggregate plots (generated under `bench/out/`):
+
+![CAMI Runtime, CPU, and Memory](bench/out/fig_runtime_cpu_mem.png)
+
+![Ranked F1 Scores](bench/out/fig_f1_by_rank.png)
+
+![Peak Memory By Tool](bench/out/fig_peak_memory_by_tool.png)
+
 ### Configuration
 
 | Parameter | Default | Description |
