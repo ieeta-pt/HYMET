@@ -82,11 +82,11 @@ Outputs:
 
 ### 2.3 Visual Summary
 
-![HYMET runtime and memory](out/figures/fig_case_runtime.png)
+![HYMET runtime and memory](../results/case/fig_case_runtime.png)
 
-![Top taxa per sample](out/figures/fig_case_top_taxa_panels.png)
+![Top taxa per sample](../results/case/fig_case_top_taxa_panels.png)
 
-![Top taxon overlap heatmap](out/figures/fig_case_top_taxa_heatmap.png)
+![Top taxon overlap heatmap](../results/case/fig_case_top_taxa_heatmap.png)
 
 
 ## 3. Database Ablation
