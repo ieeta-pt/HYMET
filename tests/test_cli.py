@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "bin" / "hymet"
+SIM_MUT = ROOT / "testdataset" / "simulate_mutations.py"
 
 
 def run_cli(*args):
@@ -91,3 +92,27 @@ def test_legacy_dry_run():
         "--input_dir",
         "/tmp/input",
     )
+
+
+def test_simulate_mutations_deterministic(tmp_path):
+    input_fasta = ROOT / "tests" / "data" / "mutation_input.fna"
+    expected_fasta = ROOT / "tests" / "data" / "mutation_expected.fna"
+    output_fasta = tmp_path / "mutated.fna"
+    cmd = [
+        sys.executable,
+        str(SIM_MUT),
+        "--fasta",
+        str(input_fasta),
+        "--output",
+        str(output_fasta),
+        "--sub-rate",
+        "0.3",
+        "--indel-rate",
+        "0.05",
+        "--max-indel-length",
+        "2",
+        "--seed",
+        "1337",
+    ]
+    subprocess.run(cmd, check=True, cwd=ROOT)
+    assert output_fasta.read_text() == expected_fasta.read_text()

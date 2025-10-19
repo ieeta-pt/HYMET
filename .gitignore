@@ -5,6 +5,7 @@ case/out_*/
 case/ablation/
 cache/
 data/
+!tests/data/
 debug/
 input/
 output/
