@@ -46,7 +46,7 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
   - `bench/out/summary_per_tool_per_sample.tsv`
   - `bench/out/leaderboard_by_rank.tsv`
   - `bench/out/runtime_memory.tsv`
-  - Figures: `bench/out/fig_accuracy_by_rank.png`, `fig_f1_by_rank.png`, `fig_l1_braycurtis.png`, `fig_per_sample_f1_stack.png`, `fig_cpu_time_by_tool.png`, `fig_peak_memory_by_tool.png`
+  - Figures: `results/bench/fig_accuracy_by_rank.png`, `results/bench/fig_f1_by_rank.png`, `results/bench/fig_l1_braycurtis.png`, `results/bench/fig_per_sample_f1_stack.png`, `results/bench/fig_cpu_time_by_tool.png`, `results/bench/fig_peak_memory_by_tool.png`
 - Cache keys are logged for each HYMET invocation; omit `FORCE_DOWNLOAD` to reuse them. Remove old entries in `data/downloaded_genomes/cache_bench/` when disk space gets tight.
 - MetaPhlAn 4 retries automatically with `--split_reads` and ≤4 threads if the primary run fails, which eliminates the previous Bowtie2 broken pipe. Use `METAPHLAN_OPTS`/`METAPHLAN_THREADS` to override as needed.
 
