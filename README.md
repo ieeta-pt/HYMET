@@ -13,6 +13,12 @@
 - **Real-data Case Study & Ablation** (`case/`): run HYMET on public contig datasets, perform reference ablations, and capture fallback metrics. See `case/README.md`.
 - **Manuscript Hooks** (`docs/manuscript_hooks.md`): pointers to tables, plots, and methods text derived from the benchmark and case-study outputs.
 
+## HYMET at a Glance
+
+![HYMET CAMI leaderboard](results/bench/fig_f1_by_rank.png)
+![HYMET runtime vs memory](results/bench/fig_runtime_cpu_mem.png)
+![Case study top taxa](results/case/fig_case_top_taxa_panels.png)
+
 ## Installation and Configuration
 
 Follow the steps below to install and configure **HYMET**
