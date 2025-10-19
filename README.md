@@ -16,15 +16,15 @@
 ## HYMET at a Glance
 
 <p align="center">
-  <img src="results/bench/fig_f1_by_rank.png" alt="HYMET CAMI leaderboard" width="32%">
-  <img src="results/bench/fig_runtime_cpu_mem.png" alt="HYMET runtime vs memory" width="32%">
+  <img src="results/bench/fig_contig_accuracy_heatmap.png" alt="HYMET contig accuracy by rank" width="32%">
+  <img src="results/bench/fig_runtime_cpu_mem.png" alt="Runtime vs memory" width="32%">
   <img src="results/case/fig_case_top_taxa_panels.png" alt="Case study top taxa" width="32%">
 </p>
 
-These snapshots highlight HYMET’s strengths:
-- **High-rank precision** – HYMET leads the CAMI leaderboard through order/family ranks and remains competitive at species (left).
-- **Fast & lightweight** – Runtime versus peak RSS (middle) shows HYMET delivering among the quickest runs while staying under ~8 GB RAM.
-- **Real-data fidelity** – The MGnify gut case study (right) surfaces the dominant taxa with clean, interpretable abundance profiles.
+Highlights from the latest public run:
+- **Per-rank contig accuracy** (left) – HYMET keeps contig accuracy above 90% through genus and around 81% at species on the CAMI subset.
+- **Fast & lightweight** (middle) – HYMET remains among the quickest pipelines while holding peak RSS under ~8 GB.
+- **Real-data fidelity** (right) – The MGnify gut case study surfaces dominant taxa with clean, interpretable abundance profiles.
 
 ## Installation and Configuration
 
