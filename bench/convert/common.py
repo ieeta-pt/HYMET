@@ -104,6 +104,13 @@ def _run_taxonkit(args, stdin, taxdb: str) -> subprocess.CompletedProcess:
     return proc
 
 
+def _normalise_path_str(path: str) -> str:
+    parts = (path or "").split("|") if path else []
+    if len(parts) < len(RANKS):
+        parts.extend(["NA"] * (len(RANKS) - len(parts)))
+    return "|".join(parts[:len(RANKS)])
+
+
 def taxonkit_taxpath(taxids: Iterable[str], taxdb: str) -> Dict[str, Tuple[str, str]]:
     tids = [t for t in dict.fromkeys(taxids) if t and t != "NA"]
     if not tids:
@@ -115,8 +122,9 @@ def taxonkit_taxpath(taxids: Iterable[str], taxdb: str) -> Dict[str, Tuple[str, 
             "-I",
             "1",
             "-f",
-            "{k}|{p}|{c}|{o}|{f}|{g}|{s}",
+            "{d}|{p}|{c}|{o}|{f}|{g}|{s}",
             "-t",
+            "-T",
         ]
         + (["--data-dir", taxdb] if taxdb else []),
         "\n".join(tids) + "\n",
@@ -126,7 +134,9 @@ def taxonkit_taxpath(taxids: Iterable[str], taxdb: str) -> Dict[str, Tuple[str, 
     for line in proc.stdout.splitlines():
         parts = line.split("\t")
         if len(parts) >= 3:
-            mapping[parts[0]] = (parts[1], parts[2])
+            names = _normalise_path_str(parts[1])
+            ids = _normalise_path_str(parts[2])
+            mapping[parts[0]] = (ids, names)
     return mapping
 
 

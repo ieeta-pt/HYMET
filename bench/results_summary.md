@@ -2,8 +2,6 @@
 
 This file tracks the current status of the CAMI benchmark harness and how to reproduce the runs after the per-run reference cache changes.
 
----
-
 ## 1. Environment
 
 - HYMET root: `$(pwd)/HYMET`
@@ -22,8 +20,6 @@ bin/hymet run --contigs /path/to/contigs.fna --out /path/to/output --threads 16
 # CAMI benchmark
 bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrifuge
 ```
-
----
 
 ## 2. Reproducible run recipe
 
@@ -50,31 +46,38 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 - Cache keys are logged for each HYMET invocation; omit `FORCE_DOWNLOAD` to reuse them. Remove old entries in `data/downloaded_genomes/cache_bench/` when disk space gets tight.
 - MetaPhlAn 4 retries automatically with `--split_reads` and ≤4 threads if the primary run fails, which eliminates the previous Bowtie2 broken pipe. Use `METAPHLAN_OPTS`/`METAPHLAN_THREADS` to override as needed.
 
+## 3. Latest metrics snapshot (current settings)
 
-## 3. Latest metrics snapshot (subset reference)
+| Sample              | Tool   | Rank    | F1 (%) | Notes |
+|---------------------|--------|---------|-------:|-------|
+| `cami_i_hc`         | HYMET  | species | 52.94  | 9 TP / 11 FP / 5 FN — tougher filters trim long-tail false positives but some bleed-through remains. |
+| `cami_i_lc`         | HYMET  | species | 60.00  | 6 TP / 6 FP / 2 FN — compact reference keeps both precision and recall balanced. |
+| `cami_i_mc`         | HYMET  | species | 55.56  | 5 TP / 1 FP / 7 FN — higher precision, but recall is limited by contigs without confident hits. |
+| `cami_ii_marine`    | HYMET  | species | 78.26  | 9 TP / 3 FP / 2 FN — high-complexity marine panel benefits most from the filtered candidate list. |
+| `cami_ii_mousegut`  | HYMET  | species | 60.87  | 7 TP / 2 FP / 7 FN — balanced hit list after deduplicating candidates. |
+| `cami_ii_strainmadness` | HYMET | species | 50.00  | 6 TP / 7 FP / 5 FN — strain crowding still causes near-neighbour swaps at species rank. |
+| `cami_sample_0`     | HYMET  | species | 63.64  | 14 TP / 9 FP / 7 FN — hard coverage cutoffs suppress most spurious matches from the mega-mix. |
 
-| Sample        | Tool      | Rank        | F1 (%) | Notes |
-|---------------|-----------|-------------|-------:|-------|
-| `cami_i_hc`   | HYMET     | species     | 11.76  | 2 TP / 18 FP / 12 FN — high FP rate persists even after capping Mash hits to 235 candidates. |
-| `cami_i_lc`   | HYMET     | species     | 42.11  | 4 TP / 7 FP / 4 FN — compact 147-genome reference; recall remains moderate. |
-| `cami_sample_0` | HYMET   | species     | 2.67   | 1 TP / 53 FP / 20 FN — broad mock community remains noisy even after shrinking to 744 candidates (from 5 000). |
-| `cami_i_lc`   | MetaPhlAn4 | species    | 0.00   | Run completes with fallback logic; profile stays header-only on this subset. |
+Refer to `bench/out/summary_per_tool_per_sample.tsv` for per-rank detail and `bench/out/leaderboard_by_rank.tsv` for rank-wise means (7 CAMI samples).
 
-Refer to `bench/out/summary_per_tool_per_sample.tsv` for the complete table across ranks and samples.
+This configuration used the following HYMET parameters:
 
-Per-sample candidate stats now live in `out/<sample>/hymet/logs/candidate_limit.log`; for the latest run HYMET retained 744 of 5 000 Mash hits for `cami_sample_0` and 147 of 231 for `cami_i_lc`. The MetaPhlAn fallback eliminates Bowtie2 crashes, though extremely small panels still yield empty profiles.
+```
+CAND_MAX=200 SPECIES_DEDUP=1 HYMET_REL_COV_THRESHOLD=0.2 HYMET_ABS_COV_THRESHOLD=0.02 \
+HYMET_TAXID_MIN_SUPPORT=1 HYMET_TAXID_MIN_WEIGHT=0
+```
 
-Superkingdom rows from every tool are canonicalised before scoring via `bench/tools/fix_superkingdom_taxids.py`, so CAMI II subsets that report GTDB “Bacillati/Pseudomonadati” now align with the reference (Bacteria/Archaea) and populate the previously empty metrics. All runners were re-evaluated with `lib/run_eval.sh` to refresh `summary_per_tool_per_sample.tsv` and downstream figures.
+Candidate logs (`out/<sample>/hymet/logs/candidate_limit.log`) confirm the pruning: `cami_sample_0` keeps 200 of 37,556 Mash hits, while smaller panels such as `cami_i_lc` retain their full 147 deduplicated candidates. Run metadata and resource usage live in `bench/out/runtime_memory.tsv`.
 
 ### Figure interpretations
-- **fig_f1_by_rank.png** – Kraken2 currently leads F1 at most ranks on the CAMI subset, with HYMET performing best at species in selective samples (`cami_i_lc`, `cami_ii_marine`).
-- **fig_accuracy_by_rank.png / fig_contig_accuracy_heatmap.png** – Despite the F1 drop, HYMET maintains >90% contig accuracy through genus and ~81% at species, illustrating strong recall when the candidate set is broad.
-- **fig_l1_braycurtis.png** – HYMET’s abundance error remains competitive (mean L1 <20 pct-pts) relative to other pipelines.
-- **fig_per_sample_f1_stack.png** – Highlights which tools contribute F1 signal per sample; HYMET’s scores improve when candidate limits are tightened.
-- **fig_cpu_time_by_tool.png / fig_peak_memory_by_tool.png** – Runtime and memory remain in the fast/lightweight regime for HYMET (~3–8 CPU minutes per sample, <8 GB RSS).
+- **fig_f1_by_rank.png** – HYMET averages ~93% F1 through order, ~88% at family, and settles near 60% at species across the seven CAMI samples.
+- **fig_accuracy_by_rank.png / fig_contig_accuracy_heatmap.png** – Contig-level accuracy stays above 90% down to genus and remains in the mid-80% range at species despite the stringent filters.
+- **fig_l1_braycurtis.png** – Mean abundance error trends downward with rank (~28 pct-pts at class/order, ~52 pct-pts at species) reflecting the precision/recall trade-off.
+- **fig_per_sample_f1_stack.png** – Highlights which CAMI subsets gain the most from the tightened filtering (marine and mock communities show the biggest lift).
+- **fig_cpu_time_by_tool.png / fig_peak_memory_by_tool.png** – HYMET completes in roughly 1–3.5 wall minutes per sample; peak RSS ranges from ~1.1 GB on CAMI I to ~17.4 GB on CAMI II marine/strainmadness.
 
-
-
-## 4. Outstanding tasks
-
-- None at this time. Keep monitoring MetaPhlAn resource use on larger contig sets and document any future deviations.
+### Tool-specific notes
+- **Kraken2/Bracken** – The rebuilt Bracken database (`database150mers.kmer_distrib`) now feeds the evaluation, lifting mean species-level F1 to ~55% (precision 69%, recall 47%).
+- **MetaPhlAn4** – Lineage conversion now consumes MetaPhlAn’s taxid hierarchy directly, producing populated CAMI profiles and ~75% mean species F1 across the seven CAMI samples.
+- **sourmash_gather** – The gather workflow reports superkingdom and species ranks; intermediate ranks are intentionally omitted in the figures to avoid implying zero-score support.
+- **Centrifuge & Ganon2** – Both tools complete successfully, but high abundance error remains without additional filtering; consult `summary_per_tool_per_sample.tsv` for per-rank deltas.

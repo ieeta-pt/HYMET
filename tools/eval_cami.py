@@ -124,11 +124,18 @@ def taxonkit_taxpath(taxids, taxdb):
     if not taxids: return out
     env=os.environ.copy(); env["TAXONKIT_DB"]=taxdb
     for ch in chunked(list(taxids), 50000):
-        p=subprocess.run(["taxonkit","reformat","--data-dir",taxdb,"-I","1","-f","{k}|{p}|{c}|{o}|{f}|{g}|{s}","-t"],
+        p=subprocess.run(["taxonkit","reformat","--data-dir",taxdb,"-I","1","-f","{d}|{p}|{c}|{o}|{f}|{g}|{s}","-t","-T"],
                          input="\n".join(ch)+"\n", text=True, capture_output=True, check=True, env=env)
         for line in p.stdout.strip().splitlines():
             ps=line.split("\t")
-            if len(ps)>=3: out[ps[0]]=(ps[1],ps[2])
+            if len(ps)>=3:
+                def _norm(path):
+                    parts=(path or "").split("|") if path else []
+                    if len(parts)<len(RANKS): parts.extend(["NA"]*(len(RANKS)-len(parts)))
+                    return "|".join(parts[:len(RANKS)])
+                names=_norm(ps[1])
+                ids=_norm(ps[2])
+                out[ps[0]]=(ids,names)
     return out
 
 # -------------- taxonomy id map ---------------
@@ -318,7 +325,7 @@ def profiles_from_contig_maps(contig2tid, lengths, taxdb):
     for cont,tid in normalized.items():
         w=lengths.get(cont,1); names_ids=paths.get(tid)
         if not names_ids: continue
-        ids=names_ids[1].split("|")
+        ids=names_ids[0].split("|")
         for i,_ in enumerate(RANKC):
             if i<len(ids) and ids[i]!="NA":
                 prof[RANKS[i]][ids[i]]+=w; acc[RANKS[i]]+=w
@@ -536,7 +543,7 @@ def eval_contigs(pred_file, gt_files, taxdb, outdir, pred_fasta=None, gt_fasta=N
     for i,r in enumerate(RANKS):
         tot=0; ok=0
         for _,pt,gtid in pairs:
-            pids=tpaths.get(pt,("",""))[1]; gids=tpaths.get(gtid,("",""))[1]
+            pids=tpaths.get(pt,("",""))[0]; gids=tpaths.get(gtid,("",""))[0]
             if not pids or not gids: continue
             pvec=pids.split("|"); gvec=gids.split("|")
             if i>=len(pvec) or i>=len(gvec): continue
