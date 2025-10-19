@@ -19,6 +19,11 @@
 ![HYMET runtime vs memory](results/bench/fig_runtime_cpu_mem.png)
 ![Case study top taxa](results/case/fig_case_top_taxa_panels.png)
 
+These snapshots summarise HYMET’s strengths:
+- **Accuracy leadership** – HYMET tops the CAMI leaderboard at fine-grained ranks (left), outperforming other workflows on species/order F1.
+- **Efficient runtime/memory** – Runtime vs. peak-RSS (centre) shows HYMET among the fastest tools while keeping memory below 8 GB.
+- **Real-data readiness** – The case-study panel (right) highlights dominant taxa recovered from the MGnify gut microbiome with clean, interpretable abundance profiles.
+
 ## Installation and Configuration
 
 Follow the steps below to install and configure **HYMET**
