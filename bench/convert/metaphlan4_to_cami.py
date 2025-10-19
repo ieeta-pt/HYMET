@@ -10,27 +10,30 @@ from typing import Dict, List, Tuple
 
 if __package__ is None or __package__ == "":  # pragma: no cover - CLI fallback
     sys.path.append(os.path.dirname(__file__))
-    from common import RANKS, taxonkit_name2taxid, taxonkit_taxpath, write_cami_profile  # type: ignore
+    from common import RANKS, taxonkit_taxpath, write_cami_profile  # type: ignore
 else:  # pragma: no cover
-    from .common import RANKS, taxonkit_name2taxid, taxonkit_taxpath, write_cami_profile
+    from .common import RANKS, taxonkit_taxpath, write_cami_profile
 
 
-def read_metaphlan(path: str) -> List[Tuple[str, float]]:
-    rows: List[Tuple[str, float]] = []
+def read_metaphlan(path: str) -> List[Tuple[str, str, float]]:
+    rows: List[Tuple[str, str, float]] = []
     with open(path, "r") as handle:
         for raw in handle:
             raw = raw.strip()
             if not raw or raw.startswith("#"):
                 continue
             parts = raw.split("\t")
-            if len(parts) < 2:
+            if len(parts) < 3:
                 continue
             lineage = parts[0].strip()
+            taxid_field = parts[1].strip()
+            taxid_parts = [tok for tok in taxid_field.split("|") if tok]
+            taxid = taxid_parts[-1] if taxid_parts else taxid_field
             try:
-                abundance = float(parts[1])
+                abundance = float(parts[2])
             except ValueError:
                 continue
-            rows.append((lineage, abundance))
+            rows.append((lineage, taxid, abundance))
     return rows
 
 
@@ -60,6 +63,13 @@ def lineage_to_ranked_names(lineage: str) -> Dict[str, str]:
     return out
 
 
+def _pad_path(values: List[str]) -> List[str]:
+    padded = list(values)
+    if len(padded) < len(RANKS):
+        padded.extend(["NA"] * (len(RANKS) - len(padded)))
+    return padded[: len(RANKS)]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Convert MetaPhlAn4 profiles to CAMI format.")
     ap.add_argument("--input", required=True, help="MetaPhlAn profile TSV.")
@@ -74,32 +84,23 @@ def main() -> None:
         write_cami_profile([], args.out, args.sample_id, args.tool, normalise=False)
         return
 
-    final_names = []
-    for lineage, _ in records:
-        ranked = lineage_to_ranked_names(lineage)
-        for rank in reversed(RANKS):
-            if rank in ranked:
-                final_names.append(ranked[rank])
-                break
-
-    name_to_taxid = taxonkit_name2taxid(final_names, args.taxdb)
-    taxids = [taxid for taxid, _ in name_to_taxid.values()]
-    taxid_to_paths = taxonkit_taxpath(taxids, args.taxdb)
-
     cami_rows = []
-    for lineage, abundance in records:
+    valid_taxids = [taxid for _, taxid, _ in records if taxid.isdigit() and int(taxid) > 0]
+    taxid_to_paths = taxonkit_taxpath(valid_taxids, args.taxdb)
+
+    for lineage, taxid, abundance in records:
+        if abundance <= 0:
+            continue
         ranked = lineage_to_ranked_names(lineage)
-        taxid = "NA"
-        for rank in reversed(RANKS):
-            nm = ranked.get(rank)
-            if nm and nm in name_to_taxid:
-                candidate, c_rank = name_to_taxid[nm]
-                if candidate in taxid_to_paths:
-                    taxid = candidate
-                    ids_str, names_str = taxid_to_paths[candidate]
-                    taxpath = ids_str.split("|")
-                    names = names_str.split("|")
-                    break
+        if not ranked:
+            continue
+        taxid_clean = taxid if taxid.isdigit() and int(taxid) > 0 else "NA"
+        if taxid_clean == "NA":
+            continue
+        if taxid_clean in taxid_to_paths:
+            ids_str, names_str = taxid_to_paths[taxid_clean]
+            taxpath = _pad_path(ids_str.split("|"))
+            names = _pad_path(names_str.split("|"))
         else:
             taxpath = ["NA"] * len(RANKS)
             names = ["NA"] * len(RANKS)
@@ -110,7 +111,7 @@ def main() -> None:
                 break
         cami_rows.append(
             {
-                "taxid": taxid,
+                "taxid": taxid_clean,
                 "rank": target_rank or "species",
                 "taxpath": taxpath,
                 "taxpathsn": names,

@@ -27,6 +27,11 @@ RANK_ALIAS = {
 GCFA_RE = re.compile(r'GC[AF]_\d+(?:\.\d+)?(?:_PRJ[A-Z]+\d+)?')
 ACC_RE = re.compile(r'(NC_\d+\.\d+|NZ_[A-Z]{2}\d+\.\d+|NZ_[A-Z]{5}\d+\.\d+|CP\d+\.\d+|CM\d+\.\d+|[A-Z]{2}_\d+\.\d+)')
 
+REL_COV_THRESHOLD = float(os.getenv("HYMET_REL_COV_THRESHOLD", "0.0"))
+ABS_COV_THRESHOLD = float(os.getenv("HYMET_ABS_COV_THRESHOLD", "0.0"))
+TAXID_MIN_SUPPORT = int(os.getenv("HYMET_TAXID_MIN_SUPPORT", "0"))
+TAXID_MIN_WEIGHT = float(os.getenv("HYMET_TAXID_MIN_WEIGHT", "0.0"))
+
 # --- globals for worker processes ---
 _TAX = None                 # dict: identifier -> taxid
 _HIER = None                # dict: taxid -> tuple/list of names by RANKS
@@ -300,16 +305,37 @@ def _process_one(task):
     """
     q, refs = task
     tw = defaultdict(float)
-    any_hit = False
+    support = defaultdict(int)
+
+    if not refs:
+        return (q, "Unknown", "root", "Unknown", 0.0)
+
+    max_cov = max((cov for _, cov in refs), default=0.0)
+    cov_cut = max(ABS_COV_THRESHOLD, max_cov * REL_COV_THRESHOLD)
+
     for tname, cov in refs:
+        if cov < cov_cut:
+            continue
         tid = _lookup_taxid(tname)
         if not tid:
             continue
-        any_hit = True
         w = cov * _REF_ABUND.get(tname, 1)
         tw[tid] += w
-    if not any_hit:
+        support[tid] += 1
+
+    if not tw:
         return (q, "Unknown", "root", "Unknown", 0.0)
+
+    if TAXID_MIN_SUPPORT > 0 or TAXID_MIN_WEIGHT > 0.0:
+        filtered = {
+            tid: weight
+            for tid, weight in tw.items()
+            if support[tid] >= TAXID_MIN_SUPPORT and weight >= TAXID_MIN_WEIGHT
+        }
+        if not filtered:
+            return (q, "Unknown", "root", "Unknown", 0.0)
+        tw = filtered
+
     lineage, level, conf, rep_tid = _weighted_lca(tw)
     tid_out = rep_tid if rep_tid is not None else "Unknown"
     return (q, lineage, level, tid_out, conf)

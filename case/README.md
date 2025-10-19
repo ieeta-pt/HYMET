@@ -1,6 +1,6 @@
 # HYMET Case Study & Database Ablation Toolkit
 
-This directory complements the CAMI benchmark harness with scripts to run HYMET on real-world contig datasets and to measure graceful degradation when reference sequences are progressively removed.
+This directory documents the tooling used to run HYMET on real-world contig datasets and to measure graceful degradation when reference sequences are progressively removed.
 
 ## Layout
 
@@ -81,4 +81,4 @@ case/
 - All heavy artefacts are ignored by git (`out/`, `ablation/`, `tmp/`).
 - `run_ablation.sh` forwards the `--seed` parameter to `ablate_db.py` (default 1337) so sequence removal is reproducible.
 
-Use these outputs to populate manuscript sections describing real-data performance and robustness under incomplete reference databases.
+These outputs support documenting real-data performance and robustness under incomplete reference databases.

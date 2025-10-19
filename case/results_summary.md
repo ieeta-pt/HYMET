@@ -1,7 +1,6 @@
 # HYMET Case Study & Ablation Results
 
-This note captures the current status of the real-data case study and database ablation experiments after enabling the per-run reference cache. It also documents how to rerun each step reproducibly.
-
+This document captures the current status of the real-data case study and database ablation experiments after enabling the per-run reference cache. It also documents how to rerun each step reproducibly.
 
 ## 1. Per-run Reference Cache
 
@@ -28,7 +27,6 @@ FORCE_DOWNLOAD=1 CACHE_ROOT=data/downloaded_genomes/cache_case THREADS=8 ./run_c
 ```
 
 > **Note:** Mash still reports up to 5 000 candidates. If you want smaller references (e.g., for mock communities), run with `CAND_MAX=<desired number>` or preload a curated FASTA in the cache before calling HYMET.
-
 
 ## 2. Case Study Outputs
 
@@ -88,7 +86,6 @@ Outputs:
 
 ![Top taxon overlap heatmap](../results/case/fig_case_top_taxa_heatmap.png)
 
-
 ## 3. Database Ablation
 
 Current run (with default 5 000-genome reference) produced no removals; the target TaxIDs do not exist in that FASTA. As a result, the tables are still headers only:
@@ -125,7 +122,6 @@ Current run (with default 5 000-genome reference) produced no removals; the ta
    - Per-level details under `case/ablation/zymo_mc/level_*/hymet/eval/` (profile + contig accuracy TSVs).
    - Figures: `case/ablation/figures/`
 
-
 ## 4. Preloading the Curated Zymo Reference
 
 To avoid massive downloads and align with the truth set:
@@ -147,7 +143,6 @@ THREADS=8 CACHE_ROOT=data/downloaded_genomes/cache_case ./run_case.sh --manifest
 ```
 
 This produces Zymo results aligned with the ground truth.
-
 
 **Generated files of interest**
 

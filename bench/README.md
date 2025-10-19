@@ -1,8 +1,6 @@
 # HYMET CAMI Benchmark Harness
 
-This directory contains the automation required to benchmark HYMET and a collection of baseline profilers on CAMI-style datasets. It covers database preparation, tool execution, evaluation against CAMI truth, aggregation, and figure generation. The harness is designed to be self-contained and reproducible on a typical Linux workstation or container with sufficient CPU, RAM, and disk.
-
----
+This directory documents the automation used to benchmark HYMET and selected baseline profilers on CAMI-style datasets. It includes database preparation, tool execution, evaluation against CAMI truth, aggregation, and figure generation. All scripts target a standard Linux workstation or container with sufficient CPU, RAM, and disk.
 
 ## 1. Directory Map
 
@@ -33,8 +31,6 @@ Key support scripts:
 | `convert/*.py` | Convert raw outputs into CAMI-compliant profiles. |
 | `aggregate_metrics.py` | Builds `summary_per_tool_per_sample.tsv`, `leaderboard_by_rank.tsv`, `contig_accuracy_per_tool.tsv`. |
 
----
-
 ## 2. Prerequisites
 
 | Requirement | Notes |
@@ -45,8 +41,6 @@ Key support scripts:
 | Disk | Allocate ~160 GB (MetaPhlAn DB ≈34 GB, HYMET data ≈45 GB, tool outputs ≈2 GB). Remove HYMET minimap2 indices to save ~52 GB per sample. |
 | Taxonomy dump | `HYMET/taxonomy_files/` must hold NCBI `names.dmp`, `nodes.dmp`, etc. |
 | MetaPhlAn DB | Install with `metaphlan --install -x mpa_vJun23_CHOCOPhlAnSGB_202307 --db_dir bench/db/metaphlan`. |
-
----
 
 ## 3. Input Data
 
@@ -76,8 +70,6 @@ python ../tools/generate_cami_subsets.py \
 
 Database builders expect a shared FASTA (`refsets/combined_subset.fasta`). Build or override via `REF_FASTA=/path/to/fasta`.
 
----
-
 ## 4. Environment Setup
 
 ```bash
@@ -91,8 +83,6 @@ Capture an exact environment snapshot after modifications:
 ```bash
 micromamba env export -n hymet-benchmark > environment.lock.yml
 ```
-
----
 
 ## 5. Database Builders
 
@@ -114,8 +104,6 @@ python lib/subset_fasta.py \
   --max-seqs 1000 --max-bases 500000000
 export REF_FASTA=$(pwd)/refsets/combined_subset.fasta
 ```
-
----
 
 ## 6. Running the Benchmark
 
@@ -177,8 +165,6 @@ Useful after manual tweaks to converter scripts:
 python aggregate_metrics.py --bench-root . --outdir out
 ```
 
----
-
 ## 7. Output Layout
 
 `out/<sample>/<tool>/` typically contains:
@@ -205,8 +191,6 @@ python aggregate_metrics.py --bench-root . --outdir out
 - `fig_l1_braycurtis.png`
 - `fig_per_sample_f1_stack.png`
 
----
-
 ## 8. Resource Tips & Troubleshooting
 
 - **Disk usage**: HYMET minimap2 index (~52 GB) is removed by default; set `KEEP_HYMET_WORK=1` to keep it. The MetaPhlAn `.tar` download (12 GB) can be deleted after extraction. Clear `out/` between runs to reclaim space.
@@ -214,8 +198,6 @@ python aggregate_metrics.py --bench-root . --outdir out
 - **MetaPhlAn memory**: Use `METAPHLAN_THREADS=4` and `--split_reads` to stay under 20 GB.
 - **No contig output**: MetaPhlAn4 and sourmash gather do not emit contig assignments. The evaluator now removes empty reports, and aggregates omit those rows.
 - **Logs**: `runtime_memory.tsv` captures command lines and resources. `_debug_info.txt` in each `eval/` folder lists the evaluation inputs.
-
----
 
 ## 9. Suggested Workflow
 
@@ -227,8 +209,6 @@ python aggregate_metrics.py --bench-root . --outdir out
 6. Regenerate aggregates/plots if needed.
 7. Review outputs in `bench/out/`.
 
----
-
 ## 10. Extending the Harness
 
 - **New tool**: add `run_<tool>.sh`, converter in `convert/`, register in `run_all_cami.sh`, document here.
@@ -236,12 +216,7 @@ python aggregate_metrics.py --bench-root . --outdir out
 - **Plots**: extend `plot/make_figures.py` or add new scripts and call them after aggregation.
 - **Environment**: update `environment.yml`, regenerate `environment.lock.yml`, mention changes in README.
 
----
-
-
----
-
 ## 11. Case Study Integration
 
-The case-study toolkit under `case/` reuses the HYMET runner and database filters described here. After completing a CAMI benchmark, run `case/run_case.sh` to produce real-data summaries and `case/run_ablation.sh` to quantify the impact of removing dominant taxa from the shared FASTA. The resulting tables (top taxa, ablation fallback statistics, runtime CSV) provide the hooks referenced in the manuscript outline.
+The case-study toolkit under `case/` reuses the HYMET runner and database filters described here. After completing a CAMI benchmark, run `case/run_case.sh` to produce real-data summaries and `case/run_ablation.sh` to quantify the impact of removing dominant taxa from the shared FASTA.
 

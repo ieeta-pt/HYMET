@@ -105,6 +105,7 @@ def batch_taxpath(taxids: Iterable[str], taxdb: str) -> Dict[str, Dict[str, obje
         "-f",
         "{d}|{p}|{c}|{o}|{f}|{g}|{s}",
         "-t",
+        "-T",
     ]
     input_text = "\n".join(taxids) + "\n"
     output = _run(cmd, input_text)
@@ -116,11 +117,18 @@ def batch_taxpath(taxids: Iterable[str], taxdb: str) -> Dict[str, Dict[str, obje
         if len(parts) >= 3:
             names = parts[1]
             ids = parts[2]
-            names_list = [n if n and n.upper() != "NA" else "" for n in names.split("|")]
+            def _pad(values: List[str]) -> List[str]:
+                padded = [v if v and v.upper() != "NA" else "" for v in values]
+                if len(padded) < len(RANKS):
+                    padded.extend([""] * (len(RANKS) - len(padded)))
+                return padded[: len(RANKS)]
+            names_list = _pad(names.split("|"))
+            ids_list = _pad(ids.split("|"))
             mapping[parts[0]] = {
                 "names": names,
                 "ids": ids,
                 "names_list": names_list,
+                "ids_list": ids_list,
             }
     return mapping
 
@@ -130,15 +138,15 @@ def accumulate(
     lineage_records: List[Dict[str, str]],
     taxdb: str,
 ) -> Tuple[
-    Dict[str, Dict[str, int]],
-    Dict[str, int],
-    Dict[str, Dict[str, object]],
+    Dict[str, Dict[str, float]],
+    Dict[str, float],
+    Dict[str, Dict[str, dict]],
     Dict[str, str],
 ]:
-    counts = {rank: defaultdict(int) for rank in RANKS}
-    totals = {rank: 0 for rank in RANKS}
+    counts = {rank: defaultdict(float) for rank in RANKS}
+    totals = {rank: 0.0 for rank in RANKS}
+    meta = {rank: {} for rank in RANKS}
 
-    # Name-based records fall back to name2taxid
     all_names = set()
     for parsed in lineage_records:
         for name in parsed.values():
@@ -146,7 +154,9 @@ def accumulate(
                 all_names.add(name)
     name2tid = batch_name2taxid(all_names, taxdb)
 
-    taxids_needed: set[str] = set(taxid_records)
+    taxids_needed: set[str] = set()
+    pending: List[Tuple[str, int, float]] = []
+
     for parsed in lineage_records:
         for idx, rank in enumerate(RANKS):
             name = parsed.get(rank)
@@ -155,46 +165,64 @@ def accumulate(
             tid = name2tid.get(name)
             if not tid:
                 continue
-            counts[rank][tid] += 1
-            totals[rank] += 1
             taxids_needed.add(tid)
-
-    taxid2path = batch_taxpath(taxids_needed, taxdb)
+            pending.append((tid, idx, 1.0))
 
     for tid in taxid_records:
         if not tid:
             continue
+        taxids_needed.add(tid)
+        for idx in range(len(RANKS)):
+            pending.append((tid, idx, 1.0))
+
+    taxid2path = batch_taxpath(taxids_needed, taxdb)
+
+    def add_count(tid: str, idx: int, weight: float) -> None:
         info = taxid2path.get(tid)
         if not info:
-            continue
+            return
+        ids_list = info.get("ids_list", [])
         names_list = info.get("names_list", [])
-        for idx, nm in enumerate(names_list[: len(RANKS)]):
-            if not nm:
-                continue
-            rank = RANKS[idx]
-            counts[rank][tid] += 1
-            totals[rank] += 1
+        ancestor_tid = tid
+        if idx < len(ids_list) and ids_list[idx]:
+            ancestor_tid = ids_list[idx]
+        rank = RANKS[idx]
+        counts[rank][ancestor_tid] += weight
+        totals[rank] += weight
+        if ancestor_tid not in meta[rank]:
+            taxpath_ids = "|".join(ids_list[: idx + 1]) if ids_list else ancestor_tid
+            taxpath_names = "|".join(names_list[: idx + 1]) if names_list else ""
+            meta[rank][ancestor_tid] = {
+                "taxpath_ids": taxpath_ids or ancestor_tid,
+                "taxpath_names": taxpath_names or (names_list[idx] if idx < len(names_list) else ""),
+            }
 
-    return counts, totals, taxid2path, name2tid
+    for tid, idx, weight in pending:
+        if 0 <= idx < len(RANKS):
+            add_count(tid, idx, weight)
 
+    return counts, totals, meta, name2tid
 
-def emit_cami(counts: Dict[str, Dict[str, int]], totals: Dict[str, int], taxid2path: Dict[str, Dict[str, object]]) -> None:
+def emit_cami(counts: Dict[str, Dict[str, float]], totals: Dict[str, float], meta: Dict[str, Dict[str, dict]]) -> None:
     print("#CAMI Submission for Taxonomic Profiling")
     print("@Version:0.9.1 @Ranks:superkingdom|phylum|class|order|family|genus|species @SampleID:sample_0")
     print("@@TAXID RANK TAXPATH TAXPATHSN PERCENTAGE")
     for rank in RANKS:
-        total = totals.get(rank, 0)
+        total = totals.get(rank, 0.0)
         if total <= 0:
             continue
         rank_counts = counts.get(rank, {})
+        rank_meta = meta.get(rank, {})
         for tid, count in sorted(rank_counts.items(), key=lambda kv: kv[1], reverse=True):
-            info = taxid2path.get(tid)
+            info = rank_meta.get(tid)
             if not info:
                 continue
-            names = info.get("names", "")
-            ids = info.get("ids", "")
+            ids = info.get("taxpath_ids", "")
+            names = info.get("taxpath_names", "")
             pct = 100.0 * count / total
-            print(f"{tid}\t{rank}\t{ids}\t{names}\t{pct:.6f}")
+            print(f"{tid}	{rank}	{ids}	{names}	{pct:.6f}")
+
+
 
 
 def main() -> None:
@@ -224,11 +252,12 @@ def main() -> None:
 
     print(f"[hymet2cami] converting {len(all_names)} unique taxon names", file=sys.stderr)
 
-    counts, totals, taxid2path, name2tid = accumulate(taxid_records, lineage_records, taxdb)
+    counts, totals, meta, name2tid = accumulate(taxid_records, lineage_records, taxdb)
     print(f"[hymet2cami] mapped {len(name2tid)} names to taxids", file=sys.stderr)
-    print(f"[hymet2cami] converting {len(taxid2path)} taxids to paths", file=sys.stderr)
+    total_taxids = sum(len(v) for v in meta.values())
+    print(f"[hymet2cami] converting {total_taxids} taxids to paths", file=sys.stderr)
 
-    emit_cami(counts, totals, taxid2path)
+    emit_cami(counts, totals, meta)
     print("[hymet2cami] done", file=sys.stderr)
 
 

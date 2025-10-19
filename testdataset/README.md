@@ -1,6 +1,6 @@
 # HYMET Test Dataset Toolkit
 
-This directory contains helper scripts used in the paper to synthesize small test datasets and sanity-check the HYMET pipeline. They are not wired into the main case-study or benchmark runners yet, so here’s how to use them manually.
+This directory documents helper scripts used in the paper to synthesize small test datasets and sanity-check the HYMET pipeline. They are not wired into the main case-study or benchmark runners yet, so here’s how to use them manually.
 
 ## Requirements
 
@@ -26,4 +26,4 @@ The scripts expect to run from `HYMET/testdataset/` and create output under `HYM
 5. `createDatabase.py` – orchestrates the full mini-database build (downloads refs via wget, filters, mutates).  
    Run only after installing dependencies; ensure output directories exist.
 
-These scripts remain standalone until we integrate them into the main pipeline. For the journal revision we should capture representative commands, outputs, and note any external dependencies (NCBI APIs, etc.) in the supplementary material.
+These scripts remain standalone tooling intended for small-scale experiments and sanity checks prior to running the full benchmark pipeline.
