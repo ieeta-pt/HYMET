@@ -95,6 +95,23 @@ If you prefer using Docker, follow these steps:
    - The environment will already be set up with all dependencies installed.
    - Run the tool as needed.
 
+### 4. Installation with Singularity/Aptainer
+
+For HPC environments where Docker is unavailable, use the bundled Singularity definition:
+
+1. **Build the image** (from the repository root):
+   ```bash
+   apptainer build hymet.sif Singularity.def
+   ```
+
+2. **Run HYMET commands** (binding host directories as needed):
+   ```bash
+   apptainer exec --bind /data:/data hymet.sif hymet --help
+   apptainer exec --bind /data:/data hymet.sif hymet bench --manifest bench/cami_manifest.tsv --threads 16
+   ```
+
+The Singularity recipe mirrors the Docker setup: it installs the Conda environment defined in `environment.yml`, copies the HYMET sources into `/workspace`, and exposes the `hymet` CLI via the container `PATH`.
+
 ### 4. Installation with Conda Environment File
 
 If you cloned the repository, you can create a Conda environment from the included file:
@@ -256,13 +273,13 @@ Results are saved to `$OUTDIR/eval/`:
 
 ### Benchmark Figures
 
-Recent CAMI runs produce the following aggregate plots (generated under `bench/out/`):
+Recent CAMI runs produce the following aggregate plots (generated under `results/bench/` (and reproduced under `bench/out/` when rerunning)):
 
-![CAMI Runtime, CPU, and Memory](bench/out/fig_runtime_cpu_mem.png)
+![CAMI Runtime, CPU, and Memory](results/bench/fig_runtime_cpu_mem.png)
 
-![Ranked F1 Scores](bench/out/fig_f1_by_rank.png)
+![Ranked F1 Scores](results/bench/fig_f1_by_rank.png)
 
-![Peak Memory By Tool](bench/out/fig_peak_memory_by_tool.png)
+![Peak Memory By Tool](results/bench/fig_peak_memory_by_tool.png)
 
 ### Configuration
 
