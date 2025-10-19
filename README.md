@@ -15,14 +15,16 @@
 
 ## HYMET at a Glance
 
-![HYMET CAMI leaderboard](results/bench/fig_f1_by_rank.png)
-![HYMET runtime vs memory](results/bench/fig_runtime_cpu_mem.png)
-![Case study top taxa](results/case/fig_case_top_taxa_panels.png)
+<p align="center">
+  <img src="results/bench/fig_f1_by_rank.png" alt="HYMET CAMI leaderboard" width="32%">
+  <img src="results/bench/fig_runtime_cpu_mem.png" alt="HYMET runtime vs memory" width="32%">
+  <img src="results/case/fig_case_top_taxa_panels.png" alt="Case study top taxa" width="32%">
+</p>
 
-These snapshots summarise HYMET’s strengths:
-- **Accuracy leadership** – HYMET tops the CAMI leaderboard at fine-grained ranks (left), outperforming other workflows on species/order F1.
-- **Efficient runtime/memory** – Runtime vs. peak-RSS (centre) shows HYMET among the fastest tools while keeping memory below 8 GB.
-- **Real-data readiness** – The case-study panel (right) highlights dominant taxa recovered from the MGnify gut microbiome with clean, interpretable abundance profiles.
+These snapshots highlight HYMET’s strengths:
+- **Species F1 leadership** – HYMET sits at the top of the CAMI leaderboard for fine-grained ranks (left).
+- **Fast & lightweight** – Runtime versus peak RSS (middle) shows HYMET delivering among the quickest runs while staying under ~8 GB RAM.
+- **Real-data fidelity** – The MGnify gut case study (right) surfaces the dominant taxa with clean, interpretable abundance profiles.
 
 ## Installation and Configuration
 
@@ -284,13 +286,15 @@ Results are saved to `$OUTDIR/eval/`:
 
 ### Benchmark Figures
 
-Recent CAMI runs produce the following aggregate plots (generated under `results/bench/` (and reproduced under `bench/out/` when rerunning)):
+Recent CAMI runs also provide complementary panels (generated under `results/bench/` and reproducible via `bench/out/`):
 
-![CAMI Runtime, CPU, and Memory](results/bench/fig_runtime_cpu_mem.png)
+<p align="center">
+  <img src="results/bench/fig_accuracy_by_rank.png" alt="Per-rank accuracy" width="45%">
+  <img src="results/bench/fig_l1_braycurtis.png" alt="Abundance error per rank" width="45%">
+</p>
 
-![Ranked F1 Scores](results/bench/fig_f1_by_rank.png)
-
-![Peak Memory By Tool](results/bench/fig_peak_memory_by_tool.png)
+- `results/bench/fig_per_sample_f1_stack.png` shows how each tool contributes to per-sample F1.
+- `results/bench/fig_cpu_time_by_tool.png` and `results/bench/fig_peak_memory_by_tool.png` break down runtime and memory by method.
 
 ### Configuration
 
