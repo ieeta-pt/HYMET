@@ -22,7 +22,7 @@
 </p>
 
 These snapshots highlight HYMET’s strengths:
-- **Species F1 leadership** – HYMET sits at the top of the CAMI leaderboard for fine-grained ranks (left).
+- **High-rank precision** – HYMET leads the CAMI leaderboard through order/family ranks and remains competitive at species (left).
 - **Fast & lightweight** – Runtime versus peak RSS (middle) shows HYMET delivering among the quickest runs while staying under ~8 GB RAM.
 - **Real-data fidelity** – The MGnify gut case study (right) surfaces the dominant taxa with clean, interpretable abundance profiles.
 
