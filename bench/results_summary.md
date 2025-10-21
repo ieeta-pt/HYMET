@@ -41,10 +41,13 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 - Outputs land in `bench/out/<sample>/<tool>/`. Aggregated metrics are written to:
   - `bench/out/summary_per_tool_per_sample.tsv`
   - `bench/out/leaderboard_by_rank.tsv`
+  - `bench/out/contig_accuracy_per_tool.tsv`
   - `bench/out/runtime_memory.tsv`
-  - Figures: `results/bench/fig_accuracy_by_rank.png` (see also `results/bench/fig_contig_accuracy_heatmap.png` for contig-level accuracy), `results/bench/fig_f1_by_rank.png`, `results/bench/fig_l1_braycurtis.png`, `results/bench/fig_per_sample_f1_stack.png`, `results/bench/fig_cpu_time_by_tool.png`, `results/bench/fig_peak_memory_by_tool.png`
+  - Figures: `bench/out/fig_accuracy_by_rank.png`, `bench/out/fig_f1_by_rank.png`, `bench/out/fig_l1_braycurtis.png`, `bench/out/fig_per_sample_f1_stack.png`, `bench/out/fig_cpu_time_by_tool.png`, `bench/out/fig_peak_memory_by_tool.png` (mirrored under `results/bench/` alongside `fig_contig_accuracy_heatmap.png` for repo-level access)
 - Cache keys are logged for each HYMET invocation; omit `FORCE_DOWNLOAD` to reuse them. Remove old entries in `data/downloaded_genomes/cache_bench/` when disk space gets tight.
 - MetaPhlAn 4 retries automatically with `--split_reads` and ≤4 threads if the primary run fails, which eliminates the previous Bowtie2 broken pipe. Use `METAPHLAN_OPTS`/`METAPHLAN_THREADS` to override as needed.
+
+`run_all_cami.sh` triggers `aggregate_metrics.py` and `plot/make_figures.py` automatically at the end of a successful run, so no extra commands are required to refresh the TSVs and figures listed above.
 
 ## 3. Latest metrics snapshot (current settings)
 
@@ -79,5 +82,8 @@ Candidate logs (`out/<sample>/hymet/logs/candidate_limit.log`) confirm the pruni
 ### Tool-specific notes
 - **Kraken2/Bracken** – The rebuilt Bracken database (`database150mers.kmer_distrib`) now feeds the evaluation, lifting mean species-level F1 to ~55% (precision 69%, recall 47%).
 - **MetaPhlAn4** – Lineage conversion now consumes MetaPhlAn’s taxid hierarchy directly, producing populated CAMI profiles and ~75% mean species F1 across the seven CAMI samples.
-- **sourmash_gather** – The gather workflow reports superkingdom and species ranks; intermediate ranks are intentionally omitted in the figures to avoid implying zero-score support.
+- **sourmash_gather** – Profiles are now rolled up across the taxonomy so intermediate ranks appear in the tables/plots. Several CAMI samples still have zero F1 below phylum simply because gather reports no deeper hits; the zeros now reflect the underlying predictions rather than missing rows.
 - **Centrifuge & Ganon2** – Both tools complete successfully, but high abundance error remains without additional filtering; consult `summary_per_tool_per_sample.tsv` for per-rank deltas.
+- **BASTA (DIAMOND backend)** – Now executed against a UniProt Swiss-Prot subset converted to DIAMOND; run times range from ~7 s on the CAMI I panels to ~5.5 min for `cami_sample_0`. The converter emits CAMI-compliant profiles and contig assignments, delivering high precision at upper ranks (superkingdom/phylum ≥100% on most samples) while keeping the overall benchmark turnaround on par with the other profilers. Species-level recall remains bounded by protein coverage but is captured in the updated summary tables.
+- **PhaBOX** – Integrated via the bench runner to re-label contigs, execute `phabox2`, and parse `phagcn_prediction.tsv`. Outputs feed CAMI evaluation (profile + contig assignments). Runtime depends on the PhaBOX database size, but using the CLI natively keeps wall-clock comparable to other profilers when DIAMOND acceleration is available.
+- **Viral-only tools** – PhaBOX (and any other viral classifiers) still score near-zero on the bacterial CAMI datasets; with the roll-up in place, those zeros are genuine false positives/negatives rather than a converter gap.

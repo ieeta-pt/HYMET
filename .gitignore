@@ -9,6 +9,10 @@ data/
 debug/
 input/
 output/
+output
+dataset/
+mutation_runs/
+bench/data/tama_reads/
 taxonomy_files/
 tools/__pycache__/
 *.pyc

@@ -44,7 +44,7 @@ done
 MANIFEST="$(resolve_path "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
-DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4)
+DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap)
 declare -A TOOL_SCRIPTS=(
   [hymet]="${SCRIPT_DIR}/run_hymet.sh"
   [kraken2]="${SCRIPT_DIR}/run_kraken2.sh"
@@ -52,6 +52,12 @@ declare -A TOOL_SCRIPTS=(
   [ganon2]="${SCRIPT_DIR}/run_ganon2.sh"
   [sourmash_gather]="${SCRIPT_DIR}/run_sourmash_gather.sh"
   [metaphlan4]="${SCRIPT_DIR}/run_metaphlan4.sh"
+  [camitax]="${SCRIPT_DIR}/run_camitax.sh"
+  [basta]="${SCRIPT_DIR}/run_basta.sh"
+  [tama]="${SCRIPT_DIR}/run_tama.sh"
+  [phabox]="${SCRIPT_DIR}/run_phabox.sh"
+  [phyloflash]="${SCRIPT_DIR}/run_phyloflash.sh"
+  [viwrap]="${SCRIPT_DIR}/run_viwrap.sh"
 )
 declare -A TOOL_BUILDERS=(
   [kraken2]="${SCRIPT_DIR}/db/build_kraken2.sh"

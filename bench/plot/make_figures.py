@@ -21,6 +21,10 @@ PREFERRED_TOOL_ORDER = [
     "ganon2",
     "metaphlan4",
     "sourmash_gather",
+    "camitax",
+    "basta",
+    "phabox",
+    "phyloflash",
 ]
 PALETTE = [
     "#264653",
@@ -564,9 +568,12 @@ def main() -> None:
 
     ensure_matplotlib()
 
+    runtime_summary = summarise_runtime(runtime_rows)
     tools = sorted({row["tool"] for row in summary_rows})
     if contig_rows:
         tools = sorted(set(tools).union({row["tool"] for row in contig_rows}))
+    if runtime_summary:
+        tools = sorted(set(tools).union(runtime_summary.keys()))
     tool_colors = get_tool_colors(tools)
 
     plot_f1_by_rank(summary_rows, out_root / "fig_f1_by_rank.png", tool_colors)
@@ -575,7 +582,6 @@ def main() -> None:
         plot_accuracy(contig_rows, out_root / "fig_accuracy_by_rank.png", tool_colors)
     plot_per_sample_stack(summary_rows, out_root / "fig_per_sample_f1_stack.png", tool_colors)
 
-    runtime_summary = summarise_runtime(runtime_rows)
     if runtime_summary:
         plot_runtime(runtime_summary, out_root / "fig_cpu_time_by_tool.png", tool_colors)
         plot_memory(runtime_summary, out_root / "fig_peak_memory_by_tool.png", tool_colors)

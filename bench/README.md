@@ -18,7 +18,7 @@ bench/
 ├── out/                      # Per-run outputs (one folder per sample/tool)
 ├── plot/                     # Figure generator using matplotlib
 ├── refsets/                  # Shared reference FASTA subsets
-└── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4)
+└── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4, CAMITAX, BASTA)
 ```
 
 Key support scripts:
@@ -40,6 +40,8 @@ Key support scripts:
 | CPU/RAM | ~16 threads and ≥ 32 GB RAM. MetaPhlAn4 fits < 20 GB with `METAPHLAN_THREADS=4` + `--split_reads`. |
 | Disk | Allocate ~160 GB (MetaPhlAn DB ≈34 GB, HYMET data ≈45 GB, tool outputs ≈2 GB). Remove HYMET minimap2 indices to save ~52 GB per sample. |
 | Taxonomy dump | `HYMET/taxonomy_files/` must hold NCBI `names.dmp`, `nodes.dmp`, etc. |
+| Nextflow | Installable via `curl -s https://get.nextflow.io \| bash` (place `nextflow` on PATH or keep in `bench/`). Required for CAMITAX integration. |
+| BASTA + BLAST | Install BLAST+ (`blastx`) and the BASTA CLI; provide a compatible BLAST database for LCA assignment. |
 | MetaPhlAn DB | Install with `metaphlan --install -x mpa_vJun23_CHOCOPhlAnSGB_202307 --db_dir bench/db/metaphlan`. |
 
 ## 3. Input Data
@@ -95,6 +97,103 @@ All builders live in `bench/db/` and write `.build.stamp` files to avoid redunda
 | `build_ganon2.sh` | Build ganon2 HIBF | `REF_FASTA`, `THREADS`, `GANON_FILTER_SIZE` |
 | `build_sourmash.sh` | Build sourmash sketch + SBT | `REF_FASTA`, `SOURMASH_KSIZE`, `SOURMASH_SCALED` |
 
+### 5.1 CAMITAX Reference & Runtime
+
+CAMITAX relies on a large reference bundle and several third-party binaries outside the default benchmark environment.
+
+1. **Create the runtime environment** (uses micromamba for reproducibility):
+   ```bash
+   micromamba create -y -n camitax -c conda-forge -c bioconda \
+     python=3.10 kaiju prodigal checkm-genome hmmer pplacer bioconductor-dada2 tbb=2020.2
+   ```
+   The explicit `tbb` pin avoids a missing `tbb::task` symbol when loading `dada2`.
+
+2. **Download the CAMITAX reference database** (≈27 GB):
+   ```bash
+   ./nextflow run CAMI-challenge/CAMITAX/init.nf --db /path/to/camitax_db -work-dir /path/to/camitax_work
+   ```
+   If `nextflow pull CAMI-challenge/CAMITAX` is blocked, clone the repository manually and run `nextflow run /path/to/CAMITAX/init.nf …`.
+
+3. **Wrapper script**: `bin/nextflow_camitax.sh` executes Nextflow inside the `camitax` environment. Point `NEXTFLOW_CMD` to this script when invoking the benchmark:
+   ```bash
+   export NEXTFLOW_CMD="$(pwd)/bin/nextflow_camitax.sh"
+   export CAMITAX_DB=/path/to/camitax_db
+   export CAMITAX_PIPELINE=/path/to/CAMITAX/main.nf   # optional, defaults to remote ID
+   export CAMITAX_EXTRA_OPTS="-c $(pwd)/lib/camitax_local.config -without-docker -resume"
+   ```
+   `lib/camitax_local.config` disables container usage and reduces default CPU/memory footprints for local execution.
+
+4. **Run CAMITAX via the harness** (other profilers remain untouched):
+   ```bash
+   THREADS=8 KEEP_CAMITAX_WORK=1 ./run_all_cami.sh --tools camitax --no-build --resume
+  ```
+  The `KEEP_CAMITAX_WORK` flag preserves per-sample Nextflow work directories inside `out/<sample>/camitax/run/` for easier debugging. Omit it to reclaim disk space.
+
+### 5.2 BASTA Workflow
+
+BASTA consumes BLASTX hits and assigns taxonomy via an LCA strategy. The harness relies on user-provided dependencies.
+
+1. **Install prerequisites**:
+   - BLAST+ (`blastx`) available on `PATH`.
+   - BASTA CLI (`basta` command).
+   - A BLAST-formatted protein database (e.g., UniProt).
+   - Optional: set `TAXONKIT_DB` to reuse `HYMET/taxonomy_files`.
+
+2. **Execute on a single sample**:
+   ```bash
+   export BASTA_BLAST_DB=/path/to/blast/db/prefix
+  export BASTA_DIAMOND_DB=/path/to/diamond/db.dmnd   # optional, enables DIAMOND
+  export DIAMOND_EXTRA_OPTS="--fast"                 # optional speed/accuracy tuning
+   export BLASTX_CMD=blastx
+   export BASTA_CMD=basta
+   THREADS=8 ./run_basta.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Additional environment toggles:
+   - `BLASTX_EXTRA_OPTS="--max_hsps 5"`
+   - `BASTA_TAXON_MODE=uni` (default)
+   - `BASTA_EXTRA_OPTS="-d /root/.basta/taxonomy"` (custom database directory)
+   - `DIAMOND_EXTRA_OPTS="--fast"` (or other DIAMOND presets)
+
+3. **Batch mode** (preserves existing profiler outputs):
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools basta --no-build --resume
+   ```
+
+4. **Outputs**:
+   - `out/<sample>/basta/profile.cami.tsv`
+   - `out/<sample>/basta/classified_sequences.tsv`
+   - Intermediate files cached under `out/<sample>/basta/run/`
+
+### 5.3 PhaBOX Workflow
+
+PhaBOX performs phage lifestyle/host predictions. The harness relabels contigs, calls the CLI, and converts `phagcn_prediction.tsv` into CAMI-ready outputs.
+
+1. **Install prerequisites**:
+   - Ensure `phabox2` (or equivalent) is on `PATH`, or set `PHABOX_CMD`.
+   - Download the PhaBOX database and set `PHABOX_DB_DIR`.
+   - Optional: export `PHABOX_WORKDIR` if the CLI must run from a specific directory.
+   - `run_phabox.sh` auto-installs [`prodigal-gv`](https://github.com/apcamargo/prodigal-gv) and [`taxonkit`](https://bioinf.shenwei.me/taxonkit/) via `micromamba` (Bioconda) when missing; install them manually if `micromamba` is unavailable.
+
+2. **Execute on a single sample**:
+   ```bash
+   export PHABOX_DB_DIR=/path/to/phabox_db_v2.0.0
+   export PHABOX_CMD=phabox2                     # e.g., "python /opt/phabox/bin/phabox2"
+   THREADS=8 ./run_phabox.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Additional toggles:
+   - `PHABOX_TASK=phagcn` (default task)
+   - `PHABOX_EXTRA_OPTS="--minlen 5000"` (forwarded to the CLI)
+
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools phabox --no-build --resume
+   ```
+
+4. **Outputs**:
+   - `out/<sample>/phabox/profile.cami.tsv`
+   - `out/<sample>/phabox/classified_sequences.tsv`
+   - Intermediate artefacts under `out/<sample>/phabox/run/` (converted FASTA, ID map, raw prediction TSV)
+
 Generate a smaller shared FASTA when RAM is limited:
 
 ```bash
@@ -105,13 +204,111 @@ python lib/subset_fasta.py \
 export REF_FASTA=$(pwd)/refsets/combined_subset.fasta
 ```
 
+### 5.4 ViWrap (geNomad) Workflow
+
+The ViWrap integration invokes `genomad end-to-end` on assembled contigs and converts the virus summary into CAMI outputs.
+
+1. **Install prerequisites**:
+   - Create a dedicated environment (default `/opt/envs/genomad`):
+     ```bash
+     micromamba create -y -p /opt/envs/genomad -c conda-forge -c bioconda genomad
+     ```
+   - Download the geNomad database to shared storage (e.g. `/data/ref/viwrap/genomad_db`):
+     ```bash
+     micromamba run -p /opt/envs/genomad genomad download-database /data/ref/viwrap/genomad_db
+     ```
+2. **Execute on a single sample**:
+   ```bash
+   export VIWRAP_DB_DIR=/data/ref/viwrap/genomad_db/genomad_db
+   THREADS=8 ./run_viwrap.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Optional toggles:
+   - `VIWRAP_ENV_PREFIX=/custom/genomad/env`
+   - `VIWRAP_SCORE_CUTOFF=0.7` (minimum `virus_score` retained)
+   - `VIWRAP_EXTRA_OPTS="--lenient-taxonomy"` (forwarded to `genomad end-to-end`)
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools viwrap --no-build --resume
+   ```
+4. **Outputs**:
+   - `out/<sample>/viwrap/profile.cami.tsv`
+   - `out/<sample>/viwrap/classified_sequences.tsv`
+   - Raw geNomad artefacts under `out/<sample>/viwrap/run/`.
+
+### 5.5 PhyloFlash Workflow
+
+PhyloFlash detects and profiles SSU rRNA from assembled contigs by synthesizing pseudo-reads and running `phyloFlash.pl`.
+
+1. **Install prerequisites**:
+   - Install phyloFlash and its dependencies into a dedicated environment (default path `/opt/envs/phyloflash`). Example:
+     ```bash
+     micromamba create -y -p /opt/envs/phyloflash -c conda-forge -c bioconda phyloflash barrnap bedtools seqtk
+     ```
+   - Download the SILVA-derived database (e.g. `138.1`) and unpack it somewhere with plenty of space, such as `/data/ref/phyloflash/138.1`.
+2. **Execute on a single sample**:
+   ```bash
+   export PHYLOFLASH_DB_DIR=/data/ref/phyloflash/138.1
+   THREADS=8 ./run_phyloflash.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Optional environment toggles:
+   - `PHYLOFLASH_ENV_PREFIX=/custom/env/prefix`
+   - `PHYLOFLASH_EXTRA_OPTS="--zip"` (passed straight to `phyloFlash.pl`)
+   - `PHYLOFLASH_FRAGMENT_LEN=250` and `PHYLOFLASH_MIN_FRAGMENT_LEN=60` to adjust pseudo-read tiling.
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools phyloflash --no-build --resume
+   ```
+4. **Outputs**:
+   - `out/<sample>/phyloflash/profile.cami.tsv`
+   - `out/<sample>/phyloflash/classified_sequences.tsv` (header only when no per-read assignments are available)
+   - Intermediate artefacts (GFF, rRNA FASTA, pseudo-reads, raw phyloFlash output) under `out/<sample>/phyloflash/run/`.
+
+### 5.6 TAMA Workflow
+
+The harness includes a reproducible TAMA setup driven by static parameter files.
+
+1. **Install / locate TAMA** and its dependent databases. Note the directory containing `TAMA.pl` (set as `TAMA_ROOT` below).
+2. **Generate synthetic reads** from the benchmark contigs so TAMA receives FASTQ input:
+   ```bash
+   mkdir -p data/tama_reads
+   while IFS=$'\t' read -r sample contigs _; do
+     [[ $sample == sample_id || $sample == \#* ]] && continue
+     python tools/contigs_to_reads.py \
+       --contigs "$(realpath "$contigs")" \
+       --out "data/tama_reads/${sample}.fastq"
+   done < cami_manifest.tsv
+   ```
+   This slices contigs into 250 bp windows (tail chunks ≥100 bp) and writes high-quality single-end reads for each CAMI sample.
+3. **Source the helper environment script** to register shared locations:
+   ```bash
+   source config/tama_env.sh          # sets BENCH_ROOT and TAMA_PARAM_DIR
+   export TAMA_ROOT=/abs/path/to/TAMA # update to your installation
+   ```
+   `config/tama_params/` already contains one parameter file per CAMI sample, each now pointing to `data/tama_reads/<sample>.fastq`. The helper script prepends the micromamba `perl` toolchain (which supplies `perl-sort-key`) so that abundance estimation succeeds without extra tweaks. The default params enable only the Centrifuge and Kraken backends because the CLARK database requires >150 GB RAM to load on this host.
+4. **Run a single sample** (keeps other tools untouched):
+   ```bash
+   THREADS=8 TAMA_PARAM_FILE="" ./run_tama.sh \
+     --sample cami_sample_0 \
+     --contigs /data/cami/sample_0.fna
+   ```
+   Leaving `TAMA_PARAM_FILE` empty allows the wrapper to pick the matching file from `config/tama_params/<sample>.params.txt`. Set `KEEP_TAMA_WORK=1` to preserve the large intermediate directory under `out/<sample>/tama/run/`.
+5. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools tama --no-build --resume
+   ```
+   Combine with other profilers as required: `--tools hymet,kraken2,tama`.
+6. **Outputs**:
+   - `out/<sample>/tama/profile.cami.tsv`
+   - `out/<sample>/tama/classified_sequences.tsv` (if `read_classi*.out` is present)
+   - The parameter file used for the run is copied to `out/<sample>/tama/params.txt` for traceability.
+
 ## 6. Running the Benchmark
 
 ### 6.1 One-button driver
 
 ```bash
 THREADS=16 METAPHLAN_THREADS=4 METAPHLAN_OPTS="--split_reads" \
-  ./run_all_cami.sh --tools hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4
+  ./run_all_cami.sh --tools hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4,camitax
 ```
 
 Useful options:

@@ -7,7 +7,7 @@ import csv
 import os
 import pathlib
 import subprocess
-from typing import Iterable, List, Dict, Tuple
+from typing import Iterable, List, Dict, Tuple, Any
 
 RANKS: List[str] = ["superkingdom", "phylum", "class", "order", "family", "genus", "species"]
 RANK_CODES: Dict[str, str] = {
@@ -84,6 +84,81 @@ def write_cami_profile(
                 taxpathsn,
                 f"{perc:.6f}",
             ])
+
+
+def rollup_to_ancestors(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Propagate per-rank abundances up the taxonomy tree.
+
+    Many tools emit only species (or another single rank). This helper ensures
+    higher ranks receive corresponding percentages so evaluation metrics do not
+    collapse to zero purely due to missing rows.
+    """
+
+    merged: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+    for row in rows:
+        try:
+            perc = float(row.get("percentage", 0.0))
+        except (TypeError, ValueError):
+            continue
+        if perc <= 0:
+            continue
+
+        rank = str(row.get("rank", "species")).lower()
+        if rank not in RANKS:
+            continue
+        taxid = str(row.get("taxid", "NA")) or "NA"
+
+        taxpath = row.get("taxpath", [])
+        if isinstance(taxpath, str):
+            taxpath = taxpath.split("|")
+        taxpath = list(taxpath)
+        if len(taxpath) < len(RANKS):
+            taxpath.extend(["NA"] * (len(RANKS) - len(taxpath)))
+        taxpath = taxpath[: len(RANKS)]
+
+        names = row.get("taxpathsn", [])
+        if isinstance(names, str):
+            names = names.split("|")
+        names = list(names)
+        if len(names) < len(RANKS):
+            names.extend(["NA"] * (len(RANKS) - len(names)))
+        names = names[: len(RANKS)]
+
+        rank_idx = RANKS.index(rank)
+
+        key = (rank, taxid)
+        base_entry = merged.setdefault(
+            key,
+            {
+                "taxid": taxid,
+                "rank": rank,
+                "taxpath": taxpath[:],
+                "taxpathsn": names[:],
+                "percentage": 0.0,
+            },
+        )
+        base_entry["percentage"] += perc
+
+        for ancestor_idx in range(rank_idx):
+            ancestor_rank = RANKS[ancestor_idx]
+            ancestor_taxid = taxpath[ancestor_idx]
+            if not ancestor_taxid or ancestor_taxid == "NA":
+                continue
+            ancestor_key = (ancestor_rank, ancestor_taxid)
+            ancestor_entry = merged.setdefault(
+                ancestor_key,
+                {
+                    "taxid": ancestor_taxid,
+                    "rank": ancestor_rank,
+                    "taxpath": taxpath[:],
+                    "taxpathsn": names[:],
+                    "percentage": 0.0,
+                },
+            )
+            ancestor_entry["percentage"] += perc
+
+    return list(merged.values())
 
 
 def _run_taxonkit(args, stdin, taxdb: str) -> subprocess.CompletedProcess:
