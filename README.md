@@ -11,7 +11,7 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 ## Feature Snapshot
 
 - **Candidate filtering** – Mash containment scores cap the number of references passed to minimap2 (200 by default).
-- **CLI workflows** – `bin/hymet` provides `run`, `bench`, `case`, and `ablation` subcommands with consistent metadata outputs.
+- **CLI workflows** – `bin/hymet` provides `run`, `bench`, `case`, `ablation`, `truth build-zymo`, and `legacy` subcommands with consistent metadata outputs.
 - **Benchmark automation** – The CAMI harness produces evaluation tables, runtime logs, and figures from a single driver script.
 - **Case-study tooling** – Dedicated scripts execute MGnify and Zymo contig workflows and perform reference ablation experiments.
 - **Deployment options** – Install via Bioconda, Docker/Singularity images, or a source checkout with the supplied environment file.
