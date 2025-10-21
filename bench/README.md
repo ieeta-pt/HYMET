@@ -450,12 +450,3 @@ python aggregate_metrics.py --bench-root . --outdir out
 ## 11. Case Study Integration
 
 The case-study toolkit under `case/` reuses the HYMET runner and database filters described here. After completing a CAMI benchmark, run `case/run_case.sh` to produce real-data summaries and `case/run_ablation.sh` to quantify the impact of removing dominant taxa from the shared FASTA.
-
-## 12. Checklist Before Sharing Results
-
-- [ ] Environment created from `environment.yml` (or `environment.lock.yml`).
-- [ ] MetaPhlAn database installed and referenced via `METAPHLAN_DB_DIR`.
-- [ ] Manifest paths verified (`ls` each entry).
-- [ ] Database builders completed (check `.build.stamp`).
-- [ ] Benchmark run (`run_all_cami.sh` exit status 0).
-- [ ] Aggregates and figures regenerated (confirm `out/summary_per_tool_per_sample.tsv` timestamp).
