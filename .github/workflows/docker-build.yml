@@ -32,6 +32,6 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository_owner }}/hymet:latest
+          tags: ghcr.io/${{ toLower(github.repository_owner) }}/hymet:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
