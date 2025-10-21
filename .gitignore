@@ -1,5 +1,11 @@
 # Generated runtime artifacts
-bench/out/
+bench/out/**
+!bench/out/*.tsv
+!bench/out/fig_*.png
+!bench/out/*/viwrap/
+!bench/out/*/viwrap/*.tsv
+!bench/out/*/viwrap/profile.cami.tsv
+!bench/out/*/viwrap/classified_sequences.tsv
 case/out/
 case/out_*/
 case/ablation/
