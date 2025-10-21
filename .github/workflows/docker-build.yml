@@ -27,11 +27,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Normalize repository owner
+        run: echo "REPO_OWNER_LC=${OWNER,,}" >> "$GITHUB_ENV"
+        env:
+          OWNER: ${{ github.repository_owner }}
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ toLower(github.repository_owner) }}/hymet:latest
+          tags: ghcr.io/${{ env.REPO_OWNER_LC }}/hymet:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
