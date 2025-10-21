@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert geNomad (ViWrap) virus summary into CAMI profile format."""
+"""Convert SqueezeMeta contig taxonomy outputs into CAMI profile format."""
 
 from __future__ import annotations
 
@@ -15,70 +15,86 @@ if __package__ is None or __package__ == "":  # pragma: no cover
     sys.path.append(os.path.dirname(__file__))
     from common import (  # type: ignore
         RANKS,
-        rollup_to_ancestors,
         taxonkit_name2taxid,
         taxonkit_taxpath,
         write_cami_profile,
     )
 else:  # pragma: no cover
-    from .common import RANKS, rollup_to_ancestors, taxonkit_name2taxid, taxonkit_taxpath, write_cami_profile
+    from .common import RANKS, taxonkit_name2taxid, taxonkit_taxpath, write_cami_profile
 
-RANK_ORDER = ["superkingdom", "phylum", "class", "order", "family", "genus", "species"]
-
-
-def _parse_taxonomy(taxonomy: str) -> Dict[str, str]:
-    lineage = [part.strip() for part in taxonomy.split(";")]
-    rank_map: Dict[str, str] = {}
-    for rank, value in zip(RANK_ORDER, lineage):
-        if not value or value in {"NA", "Unclassified"}:
-            continue
-        rank_map[rank] = value
-    return rank_map
+RANK_KEYS = {
+    "superkingdom": {"superkingdom", "domain", "kingdom"},
+    "phylum": {"phylum"},
+    "class": {"class"},
+    "order": {"order"},
+    "family": {"family"},
+    "genus": {"genus"},
+    "species": {"species"},
+}
 
 
-def load_virus_summary(path: Path, score_cutoff: float) -> List[Tuple[str, Dict[str, str]]]:
-    entries: List[Tuple[str, Dict[str, str]]] = []
-    with path.open("r", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
+def _detect_columns(header: List[str]) -> Dict[str, int]:
+    indices: Dict[str, int] = {}
+    lowered = [h.strip().lower() for h in header]
+    for rank, candidates in RANK_KEYS.items():
+        for candidate in candidates:
+            if candidate in lowered:
+                indices[rank] = lowered.index(candidate)
+                break
+    return indices
+
+
+def load_taxonomy(path: Path) -> Dict[str, Dict[str, str]]:
+    taxonomy: Dict[str, Dict[str, str]] = {}
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        reader = csv.reader(handle, delimiter="\t")
+        header = next(reader, [])
+        if not header:
+            return taxonomy
+        indices = _detect_columns(header)
+        try:
+            contig_idx = header.index("contig")
+        except ValueError:
+            contig_idx = 0
         for row in reader:
-            seq_name = (row.get("seq_name") or "").strip()
-            if not seq_name:
+            if len(row) <= contig_idx:
                 continue
-            try:
-                score = float(row.get("virus_score") or "0")
-            except ValueError:
-                score = 0.0
-            if score < score_cutoff:
+            contig_id = row[contig_idx].strip()
+            if not contig_id:
                 continue
-            taxonomy = (row.get("taxonomy") or "").strip()
-            if not taxonomy:
-                continue
-            rank_map = _parse_taxonomy(taxonomy)
+            rank_map: Dict[str, str] = {}
+            for rank, idx in indices.items():
+                if len(row) <= idx:
+                    continue
+                value = row[idx].strip()
+                if not value or value in {"NA", "Unclassified"}:
+                    continue
+                rank_map[rank] = value
             if rank_map:
-                entries.append((seq_name, rank_map))
-    return entries
+                taxonomy[contig_id] = rank_map
+    return taxonomy
 
 
 def build_profile(
-    entries: List[Tuple[str, Dict[str, str]]],
+    taxonomy: Dict[str, Dict[str, str]],
     sample_id: str,
     tool: str,
     taxdb: str,
     profile_path: Path,
     classified_path: Path,
 ) -> None:
-    if not entries:
+    if not taxonomy:
         write_cami_profile([], str(profile_path), sample_id, tool)
         classified_path.unlink(missing_ok=True)
         return
 
-    names = {name for _, rank_map in entries for name in rank_map.values() if name}
+    names = {name for rank_map in taxonomy.values() for name in rank_map.values() if name}
     name_to_taxid = taxonkit_name2taxid(names, taxdb)
 
     counts: Dict[Tuple[str, str], int] = {}
     classified_rows: List[Tuple[str, str]] = []
-    for seq_name, rank_map in entries:
-        for rank in reversed(RANK_ORDER):
+    for contig, rank_map in taxonomy.items():
+        for rank in ("species", "genus", "family", "order", "class", "phylum", "superkingdom"):
             name = rank_map.get(rank)
             if not name:
                 continue
@@ -87,7 +103,7 @@ def build_profile(
                 continue
             taxid, actual_rank = hit
             counts[(taxid, actual_rank or rank)] = counts.get((taxid, actual_rank or rank), 0) + 1
-            classified_rows.append((seq_name, taxid))
+            classified_rows.append((contig, taxid))
             break
 
     if not counts:
@@ -99,7 +115,7 @@ def build_profile(
     taxpaths = taxonkit_taxpath(taxids, taxdb)
 
     total = sum(counts.values())
-    cami_rows: List[Dict[str, object]] = []
+    cami_rows = []
     for (taxid, rank), count in counts.items():
         ids_raw, names_raw = taxpaths.get(taxid, ("|".join(["NA"] * len(RANKS)), "|".join(["NA"] * len(RANKS))))
         id_vec = ids_raw.split("|")
@@ -118,30 +134,28 @@ def build_profile(
             }
         )
 
-    cami_rows = rollup_to_ancestors(cami_rows)
-    write_cami_profile(cami_rows, str(profile_path), sample_id, tool, normalise=True)
+    write_cami_profile(cami_rows, str(profile_path), sample_id, tool, normalise=False)
 
     with classified_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["Query", "TaxID"])
-        for seq_name, taxid in classified_rows:
-            writer.writerow([seq_name, taxid])
+        for contig, taxid in classified_rows:
+            writer.writerow([contig, taxid])
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert geNomad virus summary to CAMI format.")
-    parser.add_argument("--input", required=True, help="Path to <sample>_summary/<sample>_virus_summary.tsv")
+    parser = argparse.ArgumentParser(description="Convert SqueezeMeta contig taxonomy to CAMI format.")
+    parser.add_argument("--input", required=True, help="Path to contig_taxonomy.summary (TSV).")
     parser.add_argument("--out", required=True, help="Output CAMI profile TSV.")
     parser.add_argument("--sample-id", required=True, help="Sample identifier.")
-    parser.add_argument("--tool", default="viwrap", help="Tool identifier.")
+    parser.add_argument("--tool", default="squeezemeta", help="Tool identifier for metadata.")
     parser.add_argument("--taxdb", default=os.environ.get("TAXONKIT_DB", ""), help="TaxonKit database directory.")
-    parser.add_argument("--score-cutoff", type=float, default=0.5, help="Minimum virus_score to retain (default 0.5).")
     parser.add_argument("--classified-out", default="", help="Optional path for classified_sequences.tsv.")
     args = parser.parse_args()
 
-    summary_entries = load_virus_summary(Path(args.input), args.score_cutoff)
+    taxonomy = load_taxonomy(Path(args.input))
     classified_path = Path(args.classified_out) if args.classified_out else Path(args.out).with_name("classified_sequences.tsv")
-    build_profile(summary_entries, args.sample_id, args.tool, args.taxdb, Path(args.out), classified_path)
+    build_profile(taxonomy, args.sample_id, args.tool, args.taxdb, Path(args.out), classified_path)
 
 
 if __name__ == "__main__":

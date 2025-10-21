@@ -1,0 +1,13 @@
+@SampleID:	cami_ii_mousegut
+@Version:	0.9.1
+@Ranks:	superkingdom|phylum|class|order|family|genus|species
+@ToolID:	viwrap
+@@TAXID	RANK	TAXPATH	TAXPATHSN	PERCENTAGE
+10239	superkingdom	10239|NA|NA|NA|NA|NA|NA	Viruses|NA|NA|NA|NA|NA|NA	49.339207
+2731619	class	|2731618|2731619||||	|Uroviricota|Caudoviricetes||||	48.898678
+2731618	phylum	|2731618|2731619||||	|Uroviricota|Caudoviricetes||||	48.898678
+10501	family	|2732007|2732523|2732524|10501||	|Nucleocytoviricota|Megaviricetes|Algavirales|Phycodnaviridae||	0.440529
+2732007	phylum	|2732007|2732523|2732524|10501||	|Nucleocytoviricota|Megaviricetes|Algavirales|Phycodnaviridae||	0.440529
+2732523	class	|2732007|2732523|2732524|10501||	|Nucleocytoviricota|Megaviricetes|Algavirales|Phycodnaviridae||	0.440529
+2732524	order	|2732007|2732523|2732524|10501||	|Nucleocytoviricota|Megaviricetes|Algavirales|Phycodnaviridae||	0.440529
+2560065	family	|2731618|2731619||2560065||	|Uroviricota|Caudoviricetes||Herelleviridae||	0.440529

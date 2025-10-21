@@ -25,6 +25,8 @@ PREFERRED_TOOL_ORDER = [
     "basta",
     "phabox",
     "phyloflash",
+    "viwrap",
+    "squeezemeta",
 ]
 PALETTE = [
     "#264653",
@@ -328,11 +330,32 @@ def plot_l1_bray(summary_rows, out_path: Path, tool_colors):
 
     tools = order_tools([tool for tool in tool_colors if tool in tool_metrics])
     ranks = order_ranks({rank for tm in tool_metrics.values() for rank in tm["L1"].keys()})
+    if not tools or not ranks:
+        return
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 5.4), sharey=True, gridspec_kw={"wspace": 0.08})
+
+    metric_series = {
+        metric_key: {
+            tool: [mean(tool_metrics[tool][metric_key].get(rank, [])) for rank in ranks]
+            for tool in tools
+        }
+        for metric_key in ("L1", "Bray")
+    }
+    global_max = max(
+        (
+            max(values)
+            for series in metric_series.values()
+            for values in series.values()
+            if values
+        ),
+        default=0.0,
+    )
+    top_limit = global_max * 1.05 if global_max > 0 else 1.0
+
     for ax, metric_key, label in zip(axes, ["L1", "Bray"], ["L1 total variation (pct-pts)", "Bray-Curtis (%)"]):
         for tool in tools:
-            means = [mean(tool_metrics[tool][metric_key].get(rank, [])) for rank in ranks]
+            means = metric_series[metric_key][tool]
             ax.plot(
                 ranks,
                 means,
@@ -346,7 +369,7 @@ def plot_l1_bray(summary_rows, out_path: Path, tool_colors):
         ax.set_xticks(range(len(ranks)))
         ax.set_xticklabels(ranks, rotation=25)
         clean_axis(ax)
-        ax.set_ylim(bottom=0)
+        ax.set_ylim(0, top_limit)
         ax.spines["left"].set_alpha(0.6)
         ax.spines["bottom"].set_alpha(0.6)
         ax.grid(axis="y", alpha=0.25, linestyle="--", linewidth=0.7)

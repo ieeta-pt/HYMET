@@ -245,7 +245,35 @@ The ViWrap integration invokes `genomad end-to-end` on assembled contigs and con
    - `out/<sample>/viwrap/classified_sequences.tsv`
    - Raw geNomad artefacts under `out/<sample>/viwrap/run/`.
 
-### 5.5 PhyloFlash Workflow
+### 5.5 SqueezeMeta Workflow
+
+SqueezeMeta sequential mode can operate directly on pre-assembled contigs. The wrapper fabricates lightweight reads to satisfy the pipeline, runs `SqueezeMeta.pl -extassembly`, and converts the resulting contig taxonomy table.
+
+1. **Install prerequisites**:
+   - Create the environment (default `/opt/envs/squeezemeta`):
+     ```bash
+     micromamba create -y -p /opt/envs/squeezemeta -c conda-forge -c bioconda -c anaconda -c fpusan squeezemeta=1.6 --no-channel-priority
+     ```
+   - Populate the SqueezeMeta database somewhere with plenty of space (recommend `/data/ref/squeezemeta`). Use the upstream `download_databases.pl` helper and point `SQUEEZEMETA_DB_DIR` at the extracted directory.
+2. **Execute on a single sample**:
+   ```bash
+   export SQUEEZEMETA_DB_DIR=/data/ref/squeezemeta
+   THREADS=8 ./run_squeezemeta.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Optional toggles:
+   - `SQUEEZEMETA_ENV_PREFIX=/custom/squeezemeta/env`
+   - `SQUEEZEMETA_SYNTH_FRAG_LEN=200` to adjust synthetic fragment size.
+   - `SQUEEZEMETA_EXTRA_OPTS="--nobins --nodiamond"` to tailor the workflow.
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools squeezemeta --no-build --resume
+   ```
+4. **Outputs**:
+   - `out/<sample>/squeezemeta/profile.cami.tsv`
+   - `out/<sample>/squeezemeta/classified_sequences.tsv`
+   - Full SqueezeMeta project retained under `out/<sample>/squeezemeta/run/<sample>/`.
+
+### 5.6 PhyloFlash Workflow
 
 PhyloFlash detects and profiles SSU rRNA from assembled contigs by synthesizing pseudo-reads and running `phyloFlash.pl`.
 
@@ -273,7 +301,7 @@ PhyloFlash detects and profiles SSU rRNA from assembled contigs by synthesizing 
    - `out/<sample>/phyloflash/classified_sequences.tsv` (header only when no per-read assignments are available)
    - Intermediate artefacts (GFF, rRNA FASTA, pseudo-reads, raw phyloFlash output) under `out/<sample>/phyloflash/run/`.
 
-### 5.6 TAMA Workflow
+### 5.7 TAMA Workflow
 
 The harness includes a reproducible TAMA setup driven by static parameter files.
 
