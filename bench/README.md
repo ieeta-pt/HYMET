@@ -7,18 +7,26 @@ This directory documents the automation used to benchmark HYMET and selected bas
 ```
 bench/
 ├── aggregate_metrics.py      # Merge evaluation outputs → summary TSVs
+├── bin/                      # Helper entry points (e.g., Nextflow launcher for CAMITAX)
 ├── cami_manifest.tsv         # Sample manifest (local paths + optional URLs)
+├── config/                   # Parameter templates for external profilers (TAMA, etc.)
 ├── convert/                  # Tool output → CAMI format converters
 ├── data/                     # Lightweight CAMI subsets (generated locally)
 ├── db/                       # Database builders + cached indices
+├── docs/                     # Supplemental notes and walkthroughs
 ├── environment.yml           # Conda/micromamba environment spec
 ├── environment.lock.yml      # Frozen environment capture (optional)
 ├── fetch_cami.sh             # Optional downloader driven by manifest URLs
 ├── lib/                      # Shared helpers (common.sh, measure.sh, run_eval.sh, ...)
+├── nextflow/                 # Local Nextflow assets and cached work directories
 ├── out/                      # Per-run outputs (one folder per sample/tool)
 ├── plot/                     # Figure generator using matplotlib
 ├── refsets/                  # Shared reference FASTA subsets
-└── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4, CAMITAX, BASTA)
+├── results_summary.md        # Rolling benchmark status and tuning notes
+├── run_all_cami.sh           # Batch driver that orchestrates every configured tool
+├── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4, CAMITAX, BASTA, PhaBOX, phyloFlash, ViWrap/geNomad, TAMA, etc.)
+├── tmp_downloads/            # Staging area for large third-party downloads
+└── tools/                    # One-off utilities (cache pruning, subset generation, taxonomy helpers)
 ```
 
 Key support scripts:
@@ -30,6 +38,7 @@ Key support scripts:
 | `lib/run_eval.sh` | Invokes `HYMET/tools/eval_cami.py` and removes empty contig reports. |
 | `convert/*.py` | Convert raw outputs into CAMI-compliant profiles. |
 | `aggregate_metrics.py` | Builds `summary_per_tool_per_sample.tsv`, `leaderboard_by_rank.tsv`, `contig_accuracy_per_tool.tsv`. |
+| `plot/make_figures.py` | Generates accuracy/F1/abundance/resource figures from aggregated metrics. |
 
 ## 2. Prerequisites
 
@@ -86,7 +95,7 @@ Capture an exact environment snapshot after modifications:
 micromamba env export -n hymet-benchmark > environment.lock.yml
 ```
 
-## 5. Database Builders
+## 5. Database Builders & External Tool Setup
 
 All builders live in `bench/db/` and write `.build.stamp` files to avoid redundant work.
 
@@ -131,28 +140,29 @@ CAMITAX relies on a large reference bundle and several third-party binaries outs
 
 ### 5.2 BASTA Workflow
 
-BASTA consumes BLASTX hits and assigns taxonomy via an LCA strategy. The harness relies on user-provided dependencies.
+BASTA consumes translated alignments and assigns taxonomy via an LCA strategy. The wrapper prefers `diamond blastx` whenever `diamond` is available, but you can force classic BLAST+ by exporting `BASTA_USE_DIAMOND=0`.
 
 1. **Install prerequisites**:
-   - BLAST+ (`blastx`) available on `PATH`.
+   - BLAST+ (`blastx`) available on `PATH` for the fallback path.
+   - [`diamond`](https://github.com/bbuchfink/diamond) (recommended); set `BASTA_DIAMOND_DB` if the DIAMOND database does not share the BLAST prefix.
    - BASTA CLI (`basta` command).
-   - A BLAST-formatted protein database (e.g., UniProt).
-   - Optional: set `TAXONKIT_DB` to reuse `HYMET/taxonomy_files`.
+   - A BLAST/DIAMOND-formatted protein database (e.g. UniProt).
+   - Optional: `TAXONKIT_DB` pointing to `HYMET/taxonomy_files` to accelerate lineage lookups.
 
 2. **Execute on a single sample**:
    ```bash
    export BASTA_BLAST_DB=/path/to/blast/db/prefix
-  export BASTA_DIAMOND_DB=/path/to/diamond/db.dmnd   # optional, enables DIAMOND
-  export DIAMOND_EXTRA_OPTS="--fast"                 # optional speed/accuracy tuning
-   export BLASTX_CMD=blastx
-   export BASTA_CMD=basta
+   export BASTA_DIAMOND_DB=/path/to/diamond/db.dmnd   # optional if DIAMOND uses a different basename
+   export DIAMOND_EXTRA_OPTS="--fast"                 # forwarded to diamond blastx
+   export BASTA_TAXON_MODE=uni
    THREADS=8 ./run_basta.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
    ```
    Additional environment toggles:
+   - `BASTA_USE_DIAMOND=1` – force DIAMOND even when both databases exist.
+   - `BLAST_MAX_TARGETS=50` – adjust translated hit fan-out.
    - `BLASTX_EXTRA_OPTS="--max_hsps 5"`
-   - `BASTA_TAXON_MODE=uni` (default)
-   - `BASTA_EXTRA_OPTS="-d /root/.basta/taxonomy"` (custom database directory)
-   - `DIAMOND_EXTRA_OPTS="--fast"` (or other DIAMOND presets)
+   - `BASTA_EXTRA_OPTS="-d /root/.basta/taxonomy"` – custom taxonomy directory.
+   - `BLASTX_CMD` / `BASTA_CMD` – override executable paths.
 
 3. **Batch mode** (preserves existing profiler outputs):
    ```bash
@@ -304,7 +314,26 @@ The harness includes a reproducible TAMA setup driven by static parameter files.
 
 ## 6. Running the Benchmark
 
-### 6.1 One-button driver
+### 6.1 HYMET CLI shortcuts
+
+The `bin/hymet` wrapper provides friendlier entry points around the harness while inheriting the same environment variables as the shell scripts.
+
+```bash
+# Single-sample HYMET run
+bin/hymet run \
+  --contigs /path/to/contigs.fna \
+  --out /path/to/output \
+  --threads 16
+
+# Full CAMI manifest across multiple profilers
+bin/hymet bench \
+  --manifest bench/cami_manifest.tsv \
+  --tools hymet,kraken2,centrifuge
+```
+
+Run `bin/hymet bench --help` for advanced options (`--samples`, `--resume`, etc.).
+
+### 6.2 One-button driver
 
 ```bash
 THREADS=16 METAPHLAN_THREADS=4 METAPHLAN_OPTS="--split_reads" \
@@ -333,7 +362,7 @@ Important environment variables:
 | `METAPHLAN_THREADS` | `THREADS` | Bowtie2 threads. |
 | `METAPHLAN_OPTS` | (empty) | Additional MetaPhlAn options. |
 
-### 6.2 Individual tool runs
+### 6.3 Individual tool runs
 
 Call the runner directly:
 
@@ -348,7 +377,7 @@ python aggregate_metrics.py --bench-root . --outdir out
 python plot/make_figures.py  --bench-root . --outdir out  # optional
 ```
 
-### 6.3 Evaluation-only reruns
+### 6.4 Evaluation-only reruns
 
 Useful after manual tweaks to converter scripts:
 
@@ -387,6 +416,11 @@ python aggregate_metrics.py --bench-root . --outdir out
 - `fig_f1_by_rank.png`
 - `fig_l1_braycurtis.png`
 - `fig_per_sample_f1_stack.png`
+- `fig_cpu_time_by_tool.png`
+- `fig_peak_memory_by_tool.png`
+- `fig_contig_accuracy_heatmap.png`
+
+`run_all_cami.sh` runs both scripts automatically after every successful batch, and the artifacts are mirrored under `results/bench/` for repo-level inspection.
 
 ## 8. Resource Tips & Troubleshooting
 
@@ -402,7 +436,7 @@ python aggregate_metrics.py --bench-root . --outdir out
 2. Validate `cami_manifest.tsv` paths.
 3. Build databases (`db/build_*.sh`).
 4. Ensure MetaPhlAn DB exists under `bench/db/metaphlan`.
-5. Run benchmark (see §6.1).
+5. Run benchmark (see §6.2).
 6. Regenerate aggregates/plots if needed.
 7. Review outputs in `bench/out/`.
 
@@ -424,8 +458,4 @@ The case-study toolkit under `case/` reuses the HYMET runner and database filter
 - [ ] Manifest paths verified (`ls` each entry).
 - [ ] Database builders completed (check `.build.stamp`).
 - [ ] Benchmark run (`run_all_cami.sh` exit status 0).
-- [ ] Aggregates regenerated (`aggregate_metrics.py`).
-- [ ] Disk usage monitored (`df -h`).
-- [ ] `bench/out/` archived with TSVs, figures, `runtime_memory.tsv`.
-
-With these steps, the harness yields reproducible CAMI benchmark results suitable for regression tracking or publication.
+- [ ] Aggregates and figures regenerated (confirm `out/summary_per_tool_per_sample.tsv` timestamp).
