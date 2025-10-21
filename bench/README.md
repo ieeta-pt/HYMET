@@ -398,11 +398,10 @@ Call the runner directly:
 ./run_ganon2.sh --sample cami_i_lc --contigs data/cami_i_lc/contigs.fna --threads 16
 ```
 
-Then regenerate aggregates:
+Then regenerate aggregates and sync the `results/bench/` snapshots:
 
 ```bash
-python aggregate_metrics.py --bench-root . --outdir out
-python plot/make_figures.py  --bench-root . --outdir out  # optional
+./publish_results.sh
 ```
 
 ### 6.4 Evaluation-only reruns
@@ -416,7 +415,7 @@ Useful after manual tweaks to converter scripts:
   --pred-contigs out/cami_sample_0/ganon2/classified_sequences.tsv \
   --truth-contigs /data/cami/sample_0/.../gsa_mapping_new.tsv \
   --pred-fasta /data/cami/sample_0.fna --threads 16
-python aggregate_metrics.py --bench-root . --outdir out
+./publish_results.sh
 ```
 
 ## 7. Output Layout
@@ -448,7 +447,7 @@ python aggregate_metrics.py --bench-root . --outdir out
 - `fig_peak_memory_by_tool.png`
 - `fig_contig_accuracy_heatmap.png`
 
-`run_all_cami.sh` runs both scripts automatically after every successful batch, and the artifacts are mirrored under `results/bench/` for repo-level inspection.
+`run_all_cami.sh` now invokes `publish_results.sh`, so aggregate tables and figures are refreshed under both `bench/out/` and `results/bench/`.
 
 ## 8. Resource Tips & Troubleshooting
 

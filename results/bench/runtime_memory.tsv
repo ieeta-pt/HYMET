@@ -292,3 +292,16 @@ cami_i_mc	viwrap	run	1708.610	4908.310	1423.710	18.382	1.243	1.275
 cami_i_mc	viwrap	eval	22.120	12.700	1.920	0.925	2.207	0.000
 cami_i_hc	viwrap	run	2645.280	6563.570	2075.630	18.379	0.343	1.326
 cami_i_hc	viwrap	eval	13.860	12.250	1.240	0.925	0.011	0.000
+cami_ii_mousegut	viwrap	run	2599.090	6735.670	2154.560	18.377	0.054	1.149
+cami_sample_0	viwrap	run	9903.000	25881.440	8836.810	18.384	0.602	5.804
+cami_sample_0	viwrap	run	2344.220	8032.450	3055.590	1.429	0.630	0.155
+cami_sample_0	viwrap	eval	11.630	10.440	1.160	0.925	0.024	0.000
+cami_i_lc	viwrap	run	8.030	11.580	1.620	1.098	0.000	0.000
+cami_i_lc	viwrap	eval	10.730	9.640	1.080	0.925	0.003	0.000
+cami_i_mc	viwrap	run	8.360	12.000	1.660	1.116	0.000	0.000
+cami_i_mc	viwrap	eval	10.920	9.790	1.130	0.925	0.000	0.000
+cami_i_hc	viwrap	run	7.420	11.440	1.660	1.142	0.000	0.000
+cami_i_hc	viwrap	eval	11.010	10.010	1.000	0.925	0.000	0.000
+cami_ii_mousegut	viwrap	run	8.200	11.910	1.570	1.117	0.000	0.000
+cami_ii_mousegut	viwrap	eval	11.400	10.300	1.090	0.925	0.006	0.000
+cami_ii_marine	viwrap	run	0.000	0.000	0.000	0.000	0.000	0.000

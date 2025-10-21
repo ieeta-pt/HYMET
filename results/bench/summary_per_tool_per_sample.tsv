@@ -165,8 +165,8 @@ cami_i_lc	viwrap	phylum	74.5968	100.0000	0.00	0.00	0.00	0	2	2
 cami_i_lc	viwrap	class	74.5968	100.0000	0.00	0.00	0.00	0	2	2
 cami_i_lc	viwrap	order	50.4033	100.0000	0.00	0.00	0.00	0	1	3
 cami_i_lc	viwrap	family	50.4033	100.0000	0.00	0.00	0.00	0	1	5
-cami_i_lc	viwrap	genus	50.0000	100.0000	0.00	0.00	0.00	0	0	8
-cami_i_lc	viwrap	species	50.0001	100.0000	0.00	0.00	0.00	0	0	8
+cami_i_lc	viwrap	genus	50.0001	100.0000	0.00	0.00	0.00	0	0	8
+cami_i_lc	viwrap	species	50.0000	100.0000	0.00	0.00	0.00	0	0	8
 cami_i_mc	basta	superkingdom	48.9529	95.8974	100.00	33.33	50.00	1	0	2
 cami_i_mc	basta	phylum	48.9529	95.8974	100.00	33.33	50.00	1	0	2
 cami_i_mc	basta	class	48.2548	93.2546	100.00	50.00	66.67	2	0	2
@@ -405,6 +405,13 @@ cami_ii_mousegut	tama	order	42.8571	75.0000	100.00	66.67	80.00	4	0	2
 cami_ii_mousegut	tama	family	42.8571	75.0000	100.00	55.56	71.43	5	0	4
 cami_ii_mousegut	tama	genus	45.1645	79.0379	83.33	38.46	52.63	5	1	8
 cami_ii_mousegut	tama	species	46.5530	81.4679	66.67	28.57	40.00	4	2	10
+cami_ii_mousegut	viwrap	superkingdom	74.6696	100.0000	0.00	0.00	0.00	0	1	2
+cami_ii_mousegut	viwrap	phylum	74.6696	100.0000	0.00	0.00	0.00	0	2	3
+cami_ii_mousegut	viwrap	class	74.6696	100.0000	0.00	0.00	0.00	0	2	6
+cami_ii_mousegut	viwrap	order	50.2203	100.0000	0.00	0.00	0.00	0	1	6
+cami_ii_mousegut	viwrap	family	50.4405	100.0000	0.00	0.00	0.00	0	2	9
+cami_ii_mousegut	viwrap	genus	50.0000	100.0000	0.00	0.00	0.00	0	0	13
+cami_ii_mousegut	viwrap	species	49.9999	100.0000	0.00	0.00	0.00	0	0	14
 cami_ii_strainmadness	basta	superkingdom	49.7845	99.1416	100.00	50.00	66.67	1	0	1
 cami_ii_strainmadness	basta	phylum	49.7845	99.1416	100.00	50.00	66.67	1	0	1
 cami_ii_strainmadness	basta	class	49.3534	97.4468	100.00	66.67	80.00	2	0	1
@@ -559,3 +566,10 @@ cami_sample_0	tama	order	49.5449	86.6803	75.00	100.00	85.71	6	2	0
 cami_sample_0	tama	family	47.7127	83.4747	50.00	70.00	58.33	7	7	3
 cami_sample_0	tama	genus	51.7458	91.9839	32.00	66.67	43.24	8	17	4
 cami_sample_0	tama	species	52.8261	92.4213	31.03	42.86	36.00	9	20	12
+cami_sample_0	viwrap	superkingdom	74.5151	100.0000	0.00	0.00	0.00	0	1	1
+cami_sample_0	viwrap	phylum	74.5150	100.0000	0.00	0.00	0.00	0	3	3
+cami_sample_0	viwrap	class	74.5150	100.0000	0.00	0.00	0.00	0	3	5
+cami_sample_0	viwrap	order	50.3678	100.0000	0.00	0.00	0.00	0	3	6
+cami_sample_0	viwrap	family	50.6020	100.0000	0.00	0.00	0.00	0	5	10
+cami_sample_0	viwrap	genus	49.2053	100.0000	0.00	0.00	0.00	0	0	12
+cami_sample_0	viwrap	species	49.9995	100.0000	0.00	0.00	0.00	0	0	21

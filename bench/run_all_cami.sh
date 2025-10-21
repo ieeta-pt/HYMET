@@ -172,6 +172,7 @@ if [[ -s "${OUT_ROOT}/runtime_memory.tsv" ]]; then
   log "Aggregating metrics"
   python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --outdir "out"
   python3 "${SCRIPT_DIR}/plot/make_figures.py" --bench-root "${SCRIPT_DIR}" --outdir "out" || log "WARNING: plotting step failed"
+  SKIP_RECOMPUTE=1 "${SCRIPT_DIR}/publish_results.sh" || log "WARNING: failed to publish results snapshot"
 fi
 
 log "Benchmark completed. Outputs under ${OUT_ROOT}"
