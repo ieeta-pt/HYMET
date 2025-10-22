@@ -24,7 +24,7 @@ bench/
 ├── refsets/                  # Shared reference FASTA subsets
 ├── results_summary.md        # Rolling benchmark status and tuning notes
 ├── run_all_cami.sh           # Batch driver that orchestrates every configured tool
-├── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4, CAMITAX, BASTA, PhaBOX, phyloFlash, ViWrap/geNomad, TAMA, etc.)
+├── run_*.sh                  # Tool-specific wrappers (HYMET, Kraken2, Centrifuge, ganon2, sourmash gather, MetaPhlAn4, CAMITAX, BASTA, PhaBOX, phyloFlash, ViWrap/geNomad, SqueezeMeta, MegaPath-Nano, SnakeMAGs, TAMA, etc.)
 ├── tmp_downloads/            # Staging area for large third-party downloads
 └── tools/                    # One-off utilities (cache pruning, subset generation, taxonomy helpers)
 ```
@@ -339,6 +339,64 @@ The harness includes a reproducible TAMA setup driven by static parameter files.
    - `out/<sample>/tama/profile.cami.tsv`
    - `out/<sample>/tama/classified_sequences.tsv` (if `read_classi*.out` is present)
    - The parameter file used for the run is copied to `out/<sample>/tama/params.txt` for traceability.
+
+### 5.8 MegaPath-Nano Workflow
+
+MegaPath-Nano targets long-read (ONT) data. The CAMI harness fabricates long-read surrogates from contigs, runs the taxonomy-only pipeline, and converts the resulting microbe statistics.
+
+1. **Install prerequisites**:
+   - Clone the upstream repository and compile its bundled dependencies (see `Syst_Review/Configuration/megapathnano.sh` for a scripted walkthrough):
+     ```bash
+     git clone https://github.com/HKU-BAL/MegaPath-Nano /opt/tools/MegaPath-Nano
+     ```
+   - Populate the MegaPath-Nano databases (`./install_db.sh` within the repo) and ensure `minimap2`, `porechop`, and other bundled binaries are operational inside the tree.
+   - Optional: create a dedicated Conda environment with the packages referenced by `megapath_nano.py`.
+2. **Single-sample execution**:
+   ```bash
+   export MPN_ROOT=/opt/tools/MegaPath-Nano
+   # Optional overrides:
+   # export MPN_CMD="micromamba run -n mpn python3"
+   # export MPN_CHUNK_SIZE=12000   # synthetic long-read length
+   THREADS=8 ./run_megapath_nano.sh \
+     --sample cami_sample_0 \
+     --contigs /data/cami/sample_0.fna
+   ```
+   The wrapper forces `--taxon_module_only`, disables heavy AMR/noise outputs, caps aligner threads (≤64), and prunes temporary files unless `MPN_KEEP_WORK=1`.
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools megapath_nano --no-build --resume
+   ```
+4. **Outputs**:
+   - `out/<sample>/megapath_nano/profile.cami.tsv`
+   - `out/<sample>/megapath_nano/classified_sequences.tsv`
+   - Minimal run artefacts (ID map, synthetic FASTQ, raw stats) under `out/<sample>/megapath_nano/run/` when `MPN_KEEP_WORK=1`.
+
+### 5.9 SnakeMAGs Classification Path
+
+SnakeMAGs is a Snakemake workflow that normally consumes raw Illumina reads. For CAMI contig benchmarks we expose a lightweight classification path that treats long contigs as provisional MAGs and runs GTDB-Tk via Snakemake.
+
+1. **Install prerequisites**:
+   - Provide a working `snakemake` binary (`micromamba install -c conda-forge -c bioconda snakemake`).
+   - Download and unpack the GTDB-Tk data bundle; export `SNAKEMAGS_GTDB` to that directory (e.g., `/data/ref/gtdb/release214`).
+2. **Single-sample execution**:
+   ```bash
+   export SNAKEMAGS_GTDB=/data/ref/gtdb/release214
+   # Optional overrides:
+   # export SNAKEMAGS_MIN_CONTIG=8000          # retain only long contigs
+   # export SNAKEMAGS_SNKMK_CMD="snakemake -p" # print shell commands
+   THREADS=8 ./run_snakemags.sh \
+     --sample cami_sample_0 \
+     --contigs /data/cami/sample_0.fna
+   ```
+   Contigs shorter than `SNAKEMAGS_MIN_CONTIG` are skipped to reduce false positives and runtime. Intermediate MAG FASTA files and the Snakemake workdir live under `out/<sample>/snakemags/run/`.
+3. **Batch mode**:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools snakemags --no-build --resume
+   ```
+4. **Outputs**:
+   - `out/<sample>/snakemags/profile.cami.tsv`
+   - `out/<sample>/snakemags/classified_sequences.tsv`
+   - GTDB-Tk summaries retained under `out/<sample>/snakemags/run/` unless `SNAKEMAGS_KEEP_WORK=0` (default cleans up).
 
 ## 6. Running the Benchmark
 

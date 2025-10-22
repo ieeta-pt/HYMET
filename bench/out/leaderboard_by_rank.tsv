@@ -62,6 +62,13 @@ phyloflash	order	7	48.4534	93.9219	42.86	11.31	17.46
 phyloflash	phylum	7	50.0000	100.0000	0.00	0.00	0.00
 phyloflash	species	7	54.6867	92.6747	27.58	11.57	16.10
 phyloflash	superkingdom	7	39.6490	71.2498	100.00	54.76	69.05
+snakemags	class	7	44.5446	81.0886	71.43	21.67	32.24
+snakemags	family	7	44.5742	81.1398	71.43	17.94	27.61
+snakemags	genus	7	46.9841	86.5059	65.71	14.01	21.86
+snakemags	order	7	45.2536	82.3175	66.67	23.21	32.18
+snakemags	phylum	7	44.5446	81.0886	71.43	25.00	36.67
+snakemags	species	7	48.8966	91.4934	35.71	8.84	14.14
+snakemags	superkingdom	7	48.9012	82.8621	42.86	40.48	41.43
 sourmash_gather	class	7	44.8979	78.5714	85.71	20.00	32.18
 sourmash_gather	family	7	54.7083	95.7395	42.86	5.40	9.54
 sourmash_gather	genus	7	54.5947	95.7375	42.86	4.07	7.41
