@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
     --local-dir) LOCAL_DIR="$2"; shift 2;;
     -h|--help) usage;;
     *) echo "Unknown option: $1" >&2; usage;;
-  }
+  esac
 done
 
 [[ -d "$LOCAL_DIR" ]] || { echo "[verify-sketches] Local directory not found: $LOCAL_DIR" >&2; exit 2; }

@@ -50,10 +50,10 @@ have_cmd(){ command -v "$1" >/dev/null 2>&1; }
 
 download(){
   local url="$1"; local out="$2"
-  if have_cmd aria2c; then
-    aria2c -x 8 -s 8 -o "${out}" "${url}"
-  elif have_cmd curl; then
+  if have_cmd curl; then
     curl -L --fail --retry 5 --retry-delay 2 -o "${out}" "${url}"
+  elif have_cmd aria2c; then
+    aria2c -x 8 -s 8 -o "${out}" "${url}"
   elif have_cmd wget; then
     wget -O "${out}" "${url}"
   else
