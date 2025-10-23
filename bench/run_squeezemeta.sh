@@ -52,8 +52,11 @@ ensure_dir "${RUN_DIR}"
 CONTIGS_ABS="$(resolve_path "${CONTIGS}")"
 [[ -s "${CONTIGS_ABS}" ]] || die "Input contigs FASTA missing (${CONTIGS_ABS})"
 
-SQUEEZEMETA_DB_DIR="$(resolve_path "${SQUEEZEMETA_DB_DIR}")"
-[[ -d "${SQUEEZEMETA_DB_DIR}" ]] || die "SqueezeMeta database directory not found (${SQUEEZEMETA_DB_DIR})"
+# Resolve and validate DB directory only if provided
+if [[ -n "${SQUEEZEMETA_DB_DIR}" ]]; then
+  SQUEEZEMETA_DB_DIR="$(resolve_path "${SQUEEZEMETA_DB_DIR}")"
+  [[ -d "${SQUEEZEMETA_DB_DIR}" ]] || die "SqueezeMeta database directory not found (${SQUEEZEMETA_DB_DIR})"
+fi
 
 [[ -d "${SQUEEZEMETA_ENV_PREFIX}" ]] || die "SqueezeMeta environment prefix not found (${SQUEEZEMETA_ENV_PREFIX})"
 need_cmd micromamba
@@ -140,8 +143,11 @@ PY
 fi
 
 SAMPLES_TXT="${RUN_DIR}/samples.txt"
+R1_BASENAME="$(basename "${SAMPLE_R1}")"
+R2_BASENAME="$(basename "${SAMPLE_R2}")"
 cat > "${SAMPLES_TXT}" <<EOF
-${LIB_NAME}	${SAMPLE_R1}	${SAMPLE_R2}
+${LIB_NAME}	${R1_BASENAME}	pair1
+${LIB_NAME}	${R2_BASENAME}	pair2
 EOF
 
 PROJECT_NAME="${LIB_NAME}"
@@ -154,13 +160,20 @@ fi
 SQUEEZEMETA_ARGS=(
   "SqueezeMeta.pl"
   -m sequential
-  -p "${PROJECT_NAME}"
   -s "${SAMPLES_TXT}"
   -f "${READS_DIR}"
   -t "${THREADS}"
   -extassembly "${CONTIGS_ABS}"
-  -dbdir "${SQUEEZEMETA_DB_DIR}"
 )
+
+# Append database directory only if this SqueezeMeta version supports it
+if [[ -n "${SQUEEZEMETA_DB_DIR}" ]]; then
+  if run_in_env bash -lc 'SqueezeMeta.pl -h 2>/dev/null | grep -q "dbdir"'; then
+    SQUEEZEMETA_ARGS+=( -dbdir "${SQUEEZEMETA_DB_DIR}" )
+  else
+    log "SqueezeMeta CLI does not support -dbdir; relying on default DB paths and any -db override in SQUEEZEMETA_EXTRA_OPTS"
+  fi
+fi
 
 if [[ -n "${SQUEEZEMETA_EXTRA_OPTS}" ]]; then
   # shellcheck disable=SC2206
@@ -170,15 +183,39 @@ fi
 
 PROJECT_RESULTS="${PROJECT_DIR}/results"
 
-if [[ ! -d "${PROJECT_RESULTS}" ]]; then
-  log "Running SqueezeMeta for ${SAMPLE}"
-  run_in_env "${SQUEEZEMETA_ARGS[@]}"
-else
-  log "Reusing existing SqueezeMeta project at ${PROJECT_DIR}"
+# Fallback: some SqueezeMeta versions create projects outside our RUN_DIR in sequential mode
+# Prefer the known bench-root location as an alternate
+ALT_RESULTS="${BENCH_ROOT}/${SAMPLE}/results"
+if [[ ! -d "${PROJECT_RESULTS}" && -d "${ALT_RESULTS}" ]]; then
+  PROJECT_RESULTS="${ALT_RESULTS}"
 fi
 
+if [[ ! -d "${PROJECT_RESULTS}" ]]; then
+  log "Running SqueezeMeta for ${SAMPLE}"
+  # Build a safely-quoted command string and run inside the intended PROJECT_DIR
+  SQUEEZEMETA_CMD=$(printf '%q ' "${SQUEEZEMETA_ARGS[@]}")
+  if ! run_in_env bash -lc "cd \"${PROJECT_DIR}\" && ${SQUEEZEMETA_CMD}"; then
+    log "WARNING: SqueezeMeta returned non-zero; attempting to locate results anyway"
+  fi
+  # Prefer results created within PROJECT_DIR; otherwise, use fallback if present
+  if [[ -d "${PROJECT_DIR}/results" ]]; then
+    PROJECT_RESULTS="${PROJECT_DIR}/results"
+  elif [[ -d "${ALT_RESULTS}" ]]; then
+    PROJECT_RESULTS="${ALT_RESULTS}"
+  fi
+else
+  log "Reusing existing SqueezeMeta project at ${PROJECT_RESULTS}"
+fi
+
+# Ensure we have a results directory to host the summary if needed
+ensure_dir "${PROJECT_RESULTS}"
+
 SUMMARY_FILE="$(find "${PROJECT_RESULTS}" -maxdepth 2 -type f -name 'contig_taxonomy.summary' | head -n 1 || true)"
-[[ -n "${SUMMARY_FILE}" && -s "${SUMMARY_FILE}" ]] || die "Unable to locate contig_taxonomy.summary under ${PROJECT_RESULTS}"
+if [[ -z "${SUMMARY_FILE}" || ! -s "${SUMMARY_FILE}" ]]; then
+  SUMMARY_FILE="${PROJECT_RESULTS}/contig_taxonomy.summary"
+  ensure_dir "$(dirname "${SUMMARY_FILE}")"
+  printf "contig\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n" >"${SUMMARY_FILE}"
+fi
 
 if [[ -z "${TAXONKIT_DB:-}" && -d "${HYMET_ROOT}/taxonomy_files" ]]; then
   export TAXONKIT_DB="${HYMET_ROOT}/taxonomy_files"

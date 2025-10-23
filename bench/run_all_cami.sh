@@ -5,6 +5,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
+export PATH="${SCRIPT_DIR}/bin:${PATH}"
 
 MANIFEST="${SCRIPT_DIR}/cami_manifest.tsv"
 TOOLS_REQUEST="all"
@@ -44,7 +45,7 @@ done
 MANIFEST="$(resolve_path "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
-DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags)
+DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags metalign)
 declare -A TOOL_SCRIPTS=(
   [hymet]="${SCRIPT_DIR}/run_hymet.sh"
   [kraken2]="${SCRIPT_DIR}/run_kraken2.sh"
@@ -61,12 +62,14 @@ declare -A TOOL_SCRIPTS=(
   [squeezemeta]="${SCRIPT_DIR}/run_squeezemeta.sh"
   [megapath_nano]="${SCRIPT_DIR}/run_megapath_nano.sh"
   [snakemags]="${SCRIPT_DIR}/run_snakemags.sh"
+  [metalign]="${SCRIPT_DIR}/run_metalign.sh"
 )
 declare -A TOOL_BUILDERS=(
   [kraken2]="${SCRIPT_DIR}/db/build_kraken2.sh"
   [centrifuge]="${SCRIPT_DIR}/db/build_centrifuge.sh"
   [ganon2]="${SCRIPT_DIR}/db/build_ganon2.sh"
   [sourmash_gather]="${SCRIPT_DIR}/db/build_sourmash.sh"
+  [metalign]="${SCRIPT_DIR}/db/build_metalign.sh"
 )
 
 IFS=',' read -r -a TOOLS <<< "${TOOLS_REQUEST}"

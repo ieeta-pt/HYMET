@@ -57,8 +57,10 @@ ensure_dir "${RUN_DIR}"
 CONTIGS_ABS="$(resolve_path "${CONTIGS}")"
 [[ -s "${CONTIGS_ABS}" ]] || die "BASTA input FASTA missing (${CONTIGS_ABS})"
 
-BLAST_DB="$(resolve_path "${BLAST_DB}")"
-[[ -n "${BLAST_DB}" ]] || die "Protein database path must be provided via --blast-db or BASTA_BLAST_DB."
+# Provide a default TaxonKit database if not set
+if [[ -z "${TAXONKIT_DB:-}" && -d "${HYMET_ROOT}/taxonomy_files" ]]; then
+  export TAXONKIT_DB="${HYMET_ROOT}/taxonomy_files"
+fi
 
 DIAMOND_AVAILABLE=0
 if [[ "${BASTA_USE_DIAMOND:-0}" -eq 1 || -n "${BASTA_DIAMOND_DB:-}" ]]; then
@@ -76,9 +78,9 @@ if [[ ${DIAMOND_AVAILABLE} -eq 1 ]]; then
   [[ -f "${DIAMOND_DB}" || -f "${DIAMOND_DB}.dmnd" ]] || die "DIAMOND database not found at ${DIAMOND_DB}"
 else
   DIAMOND_DB=""
-fi
-
-if [[ ${DIAMOND_AVAILABLE} -eq 0 ]]; then
+  # Falling back to BLAST+: require BLAST_DB and validate files
+  [[ -n "${BLAST_DB}" ]] || die "Protein database path must be provided via --blast-db or BASTA_BLAST_DB."
+  BLAST_DB="$(resolve_path "${BLAST_DB}")"
   if [[ ! -e "${BLAST_DB}" && ! -e "${BLAST_DB}.pin" ]]; then
     die "BLAST database not found at ${BLAST_DB}"
   fi

@@ -14,8 +14,8 @@ THREADS="${THREADS:-8}"
 MPN_ROOT="${MPN_ROOT:-}"
 MPN_CMD="${MPN_CMD:-python3}"
 MPN_SCRIPT="${MPN_SCRIPT:-megapath_nano.py}"
-MPN_CHUNK_SIZE="${MPN_CHUNK_SIZE:-10000}"
-MPN_MIN_CHUNK="${MPN_MIN_CHUNK:-2500}"
+MPN_CHUNK_SIZE="${MPN_CHUNK_SIZE:-50000}"
+MPN_MIN_CHUNK="${MPN_MIN_CHUNK:-5000}"
 MPN_KEEP_WORK="${MPN_KEEP_WORK:-0}"
 MPN_EXTRA_ARGS="${MPN_EXTRA_ARGS:-}"
 
@@ -168,7 +168,10 @@ if [[ "${ALN_THREADS}" -gt 64 ]]; then
 fi
 
 log "Running MegaPath-Nano for sample ${SAMPLE}"
-pushd "${MPN_ROOT}/bin" >/dev/null
+# Run from the per-sample run directory so any stray temp files land under RUN_DIR
+# instead of polluting the tool's bin directory.
+export TMPDIR="${WORK_TMP}"
+pushd "${RUN_DIR}" >/dev/null
 set +e
 "${MPN_CMD_ARR[@]}" "${MPN_SCRIPT_ABS}" \
   --query "${QUERY_FASTQ}" \
@@ -192,7 +195,7 @@ set +e
   --no-noise_projection \
   --no-similar_species_marker \
   --no-output_PAF \
-  --no-output_noise_stat \
+  --output_noise_stat \
   --no-output_separate_noise_bed \
   --no-output_human_stat \
   --no-output_decoy_stat \
