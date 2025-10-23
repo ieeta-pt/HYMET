@@ -132,6 +132,7 @@ python3 "${SCRIPT_DIR}/convert/metaphlan4_to_cami.py" \
   --tool "metaphlan4" \
   --taxdb "${TAXDIR}"
 
+METAPHLAN_VER=$(${METAPHLAN_CMD} --version 2>/dev/null | head -n1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "metaphlan4", "profile": "${PROFILE_CAMI}", "raw_profile": "${RAW_PROFILE}", "metaphlan_cmd": "${METAPHLAN_CMD}", "extra_opts": "${USED_EXTRA_OPTS}", "threads": "${USED_THREADS}", "db_dir": "${DB_DIR}", "index": "${INDEX_NAME}"}
+{"sample_id": "${SAMPLE}", "tool": "metaphlan4", "profile": "${PROFILE_CAMI}", "raw_profile": "${RAW_PROFILE}", "metaphlan_cmd": "${METAPHLAN_CMD}", "extra_opts": "${USED_EXTRA_OPTS}", "threads": "${USED_THREADS}", "db_dir": "${DB_DIR}", "index": "${INDEX_NAME}", "metaphlan_version": "${METAPHLAN_VER}"}
 EOF
