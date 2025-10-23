@@ -51,55 +51,62 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 
 ## 3. Latest results (aggregated across CAMI samples)
 
-This section summarises the current benchmark after refreshing all aggregates and figures from `bench/out/`. HYMET delivers the strongest overall performance (mean F1 ≈ 83.9 across ranks) and the best contig-level accuracy, while other tools peak at specific taxonomic depths.
+This section summarises the current benchmark after refreshing all aggregates and figures from `bench/out/`. HYMET still tops the overall F1 leaderboard across ranks and retains the strongest contig-level accuracy, while MetaPhlAn4 now leads at species rank.
 
 Overall mean F1 (averaged across all ranks):
-- HYMET ≈ 83.9% (highest overall)
-- MetaPhlAn4 ≈ 78.8%, Kraken2 ≈ 76.8%, MegaPath‑Nano ≈ 74.5%, TAMA ≈ 73.1%
+- HYMET ≈ 83.9%
+- MetaPhlAn4 ≈ 78.8%
+- Kraken2 ≈ 76.8%
+- MegaPath‑Nano ≈ 74.5%
+- TAMA ≈ 73.1%
 
 Species-rank F1 (mean across samples):
-- MetaPhlAn4 ≈ 74.4%, HYMET ≈ 60.2%, Kraken2 ≈ 54.8%, TAMA ≈ 50.8%
-- MegaPath‑Nano ≈ 32.2%, sourmash gather ≈ 5.4%, SnakeMAGs ≈ 14.1%, phyloFlash ≈ 16.1%
-- BASTA ≈ 8.2%, Centrifuge ≈ 6.6%, Ganon2 ≈ 6.7%
-- CAMITAX, PhaBOX, SqueezeMeta, ViWrap ≈ 0% (their current CAMI pipelines emit no confident species-level assignments under our converters).
+- MetaPhlAn4 ≈ 74.4%
+- HYMET ≈ 60.2%
+- Kraken2 ≈ 54.8%
+- TAMA ≈ 50.8%
+- MegaPath‑Nano ≈ 32.2%; phyloFlash ≈ 16.1%; SnakeMAGs ≈ 14.1%
+- BASTA ≈ 8.2%; Centrifuge ≈ 6.6%; Ganon2 ≈ 6.7%; sourmash gather ≈ 5.4%
+- CAMITAX, PhaBOX, SqueezeMeta, ViWrap ≈ 0% (no species-level calls under the current converters)
 
 Higher ranks (mean F1):
-- Genus: HYMET (~89.5%) leads, followed by MegaPath‑Nano (~86%) and TAMA (~83.5%); Kraken2 (~78.7%) and MetaPhlAn4 (~74.7%) round out the leaders.
-- Family: HYMET (~98%) remains first, with MetaPhlAn4 (~92%), MegaPath‑Nano (~92.8%), TAMA (~90%), and Kraken2 (~87%).
-- Superkingdom: Multiple tools score 100% (e.g., BASTA, Ganon2, phyloFlash), as expected at coarse taxonomic levels.
+- Genus: HYMET (~76.8%), MetaPhlAn4 (~75.9%), Kraken2 (~67.7%), MegaPath‑Nano (~62.4%), TAMA (~55.3%)
+- Family: HYMET (~88.3%), MetaPhlAn4 (~84.3%), Kraken2 (~82.9%), MegaPath‑Nano (~80.8%), TAMA (~69.7%)
+- Order/Class: HYMET (>90%), Kraken2 (>89%), and MegaPath‑Nano (>83%) form the top tier; MetaPhlAn4 trails slightly but remains ahead of purely read-based profilers
+- Superkingdom: ganon2 (~97%), BASTA (~87%), MegaPath‑Nano (~83.8%), HYMET/MetaPhlAn4 (~81%) show near-perfect agreement at coarse ranks
 
-Contig‑level accuracy (species):
-- HYMET ≈ 86.1%; Kraken2 ≈ 73.9%; ganon2 ≈ 16.2%; Centrifuge ≈ 3.6%; PhaBOX ≈ 0.
-- Tools missing from the plot either provide no contig assignments (MetaPhlAn4, sourmash gather, etc.) or emit formats not yet parsed by our converters. Their absence is intentional rather than a plotting bug.
+Contig-level accuracy (species):
+- HYMET ≈ 86.1%; Kraken2 ≈ 73.9%; ganon2 ≈ 16.2%; Centrifuge ≈ 3.6%; PhaBOX ≈ 0
+- Pipelines absent from the plot (MetaPhlAn4, TAMA, sourmash gather, etc.) do not emit per-contig calls, or our converters do not yet parse their outputs—absence means “not produced,” not “zero”
 
 Abundance error trends (L1 total variation and Bray–Curtis):
-- Error grows monotonically toward species. HYMET, TAMA, and MetaPhlAn4 maintain the lowest error through genus/family, mirroring their F1 advantage at those ranks.
+- Error grows monotonically toward species. HYMET, MetaPhlAn4, and TAMA keep the lowest error through genus/family, mirroring their rank-wise F1
 
-Runtime and peak memory (means across “run” stages):
-- HYMET averages ~1.96 CPU minutes with ~17.4 GB peak RSS. Kraken2 (~0.42 min, 11.15 GB) and MegaPath‑Nano (~0.79 min, 11.49 GB) are faster but still resource-intensive.
-- CAMITAX’s run stage is ~0.09 min because its heavy lifting occurs during the evaluation stage (≈14 CPU minutes per sample); include both stages when comparing total wall-clock.
-- ganon2 (~0.13 min, 0.18 GB) and sourmash gather (~0.17 min, 0.81 GB) are the lightest pipelines. SnakeMAGs (~17.4 min, 28.9 GB) and ViWrap (~87.9 min, 18.4 GB) are the heaviest.
+Runtime and peak memory (means across `run` stages):
+- HYMET averages ~1.96 CPU minutes with ~17.4 GB peak RSS. Kraken2 (~0.42 min, 11.15 GB) and MegaPath‑Nano (~0.79 min, 11.49 GB) run faster but still demand double-digit GBs
+- CAMITAX’s run stage (~0.09 min, 0.01 GB) covers only preprocessing; its evaluation stage (≈14 CPU minutes/sample) is not plotted and should be included in total wall-clock comparisons
+- ganon2 (~0.13 min, 0.18 GB) and sourmash gather (~0.17 min, 0.81 GB) remain the lightest pipelines. SnakeMAGs (~17.4 min, 28.9 GB) and ViWrap (~87.9 min, 18.4 GB) are the heaviest
 
 ### F1 by rank
 
 ![F1 by rank](../results/bench/fig_f1_by_rank_lines.png)
 
-- HYMET’s curve stays highest from superkingdom through family, reflecting its balanced precision/recall. Species-level leadership switches to MetaPhlAn4, with HYMET, Kraken2, and TAMA following.
-- TAMA and MegaPath‑Nano perform strongly at intermediate ranks but decline more sharply at species.
+- HYMET dominates from superkingdom through family. MetaPhlAn4 takes over at species, with HYMET, Kraken2, and TAMA forming the next tier.
+- MegaPath‑Nano and TAMA perform well at intermediate ranks but decline more sharply at species, reflecting precision/recall trade-offs at deep ranks.
 
 ### Abundance error (L1 & Bray–Curtis)
 
 ![Abundance error (L1 & Bray–Curtis)](../results/bench/fig_l1_braycurtis_lines.png)
 
-- Error rises monotonically from superkingdom to species for every tool. HYMET, TAMA, and MetaPhlAn4 keep the shallowest slope, reflecting the stronger F1 they hold at genus/family.
-- Tools with limited species recall (e.g., sourmash gather, BASTA) spike early, highlighting that deeper ranks amplify minor abundance discrepancies.
+- Error rises monotonically from superkingdom to species for every tool. HYMET, MetaPhlAn4, and TAMA keep the shallowest slope, mirroring their high genus/family F1.
+- Tools with limited species recall (e.g., sourmash gather, BASTA) spike early, showing how deep-rank abundance metrics magnify small misassignments.
 
 ### Contig accuracy by rank
 
 ![Contig accuracy by rank](../results/bench/fig_accuracy_by_rank_lines.png)
 
-- HYMET maintains >90% accuracy through genus and ~86% at species, underscoring the value of long-contig alignment+LCA.
-- Kraken2 is the only other tool above 70% at species. ganon2 and Centrifuge lag, and other pipelines omit contig outputs entirely (hence no curve).
+- HYMET remains above 90% through genus and ~86% at species, underscoring the strength of long-contig alignment + LCA.
+- Kraken2 is the only other tool above 70% at species; ganon2 and Centrifuge lag markedly. Pipelines absent from the plot (MetaPhlAn4, TAMA, sourmash gather, etc.) simply do not emit per-contig calls in this harness.
 
 ### Per‑sample stacked F1 (species)
 
@@ -146,6 +153,3 @@ See the discussion sections following each figure above.
 - **BASTA (DIAMOND backend)** – Now executed against a UniProt Swiss-Prot subset converted to DIAMOND; run times range from ~7 s on the CAMI I panels to ~5.5 min for `cami_sample_0`. The converter emits CAMI-compliant profiles and contig assignments, delivering high precision at upper ranks (superkingdom/phylum ≥100% on most samples) while keeping the overall benchmark turnaround on par with the other profilers. Species-level recall remains bounded by protein coverage but is captured in the updated summary tables.
 - **PhaBOX** – Integrated via the bench runner to re-label contigs, execute `phabox2`, and parse `phagcn_prediction.tsv`. Outputs feed CAMI evaluation (profile + contig assignments). Runtime depends on the PhaBOX database size, but using the CLI natively keeps wall-clock comparable to other profilers when DIAMOND acceleration is available.
 - **Viral-only tools** – PhaBOX (and any other viral classifiers) still score near-zero on the bacterial CAMI datasets; with the roll-up in place, those zeros are genuine false positives/negatives rather than a converter gap.
-- HYMET maintains >90% accuracy through genus and ~86% at species, underscoring the value of long-contig alignment+LCA.
-- Kraken2 is the only other tool above 70% at species. ganon2 and Centrifuge lag, and other pipelines omit contig outputs entirely (hence no curve).
-  MetaPhlAn4, sourmash gather, TAMA, etc., do not provide per-contig assignments in the current harness, so they are intentionally absent.
