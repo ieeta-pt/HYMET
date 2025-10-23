@@ -979,14 +979,18 @@ def plot_per_sample_stack(summary_rows, out_path: Path, tool_colors):
     plt.close(fig)
 
 
-def summarise_runtime(runtime_rows):
+def summarise_runtime(runtime_rows, bench_root: Path | None = None):
     data = defaultdict(lambda: {"cpu_sec": [], "wall_sec": [], "max_gb": []})
+    samples_by_tool = defaultdict(set)
     for row in runtime_rows:
         if row.get("stage") != "run":
             continue
         tool = row.get("tool")
         if not tool:
             continue
+        sample = row.get("sample") or row.get("dataset")
+        if sample:
+            samples_by_tool[tool].add(sample)
         try:
             user = float(row.get("user_seconds", 0.0))
         except ValueError:
@@ -1006,6 +1010,52 @@ def summarise_runtime(runtime_rows):
         data[tool]["cpu_sec"].append(user + sys_time)
         data[tool]["wall_sec"].append(wall)
         data[tool]["max_gb"].append(rss)
+    # Special handling: CAMITAX Nextflow runs can be under-reported by /usr/bin/time
+    # Try to parse wall time from Nextflow logs when available, falling back to measured values.
+    if bench_root is not None and samples_by_tool.get("camitax"):
+        cami_out = bench_root / "out"
+        parsed_wall = []
+        import re
+        from datetime import datetime
+        ts_re = re.compile(r"^(?P<ts>[A-Za-z]{3}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?) ")
+
+        def parse_ts(s: str):
+            m = ts_re.match(s)
+            if not m:
+                return None
+            txt = m.group("ts")
+            for fmt in ("%b-%d %H:%M:%S.%f", "%b-%d %H:%M:%S"):
+                try:
+                    return datetime.strptime(txt, fmt)
+                except Exception:
+                    pass
+            return None
+
+        for sample in sorted(samples_by_tool["camitax"]):
+            log_path = cami_out / sample / "camitax" / "run" / ".nextflow.log"
+            if not log_path.is_file():
+                continue
+            try:
+                with log_path.open("r", encoding="utf-8", errors="ignore") as fh:
+                    first_ts = None
+                    last_ts = None
+                    for line in fh:
+                        if "Session start" in line or "Session start" in line:
+                            ts = parse_ts(line)
+                            if ts and first_ts is None:
+                                first_ts = ts
+                        if "Execution complete" in line or "Goodbye" in line:
+                            ts = parse_ts(line)
+                            if ts:
+                                last_ts = ts
+                    if first_ts and last_ts and last_ts >= first_ts:
+                        parsed_wall.append((last_ts - first_ts).total_seconds())
+            except Exception:
+                pass
+        if parsed_wall:
+            # Replace measured wall times for camitax with parsed ones (in seconds)
+            data["camitax"]["wall_sec"] = parsed_wall
+
     summary = {}
     for tool, metrics in data.items():
         cpu_vals = [v for v in metrics["cpu_sec"] if v >= 0]
@@ -1281,7 +1331,7 @@ def main() -> None:
 
     ensure_matplotlib()
 
-    runtime_summary = summarise_runtime(runtime_rows)
+    runtime_summary = summarise_runtime(runtime_rows, bench_root)
     tools = sorted({row["tool"] for row in summary_rows})
     if contig_rows:
         tools = sorted(set(tools).union({row["tool"] for row in contig_rows}))
@@ -1301,7 +1351,10 @@ def main() -> None:
     plot_per_sample_stack(summary_rows, out_root / "fig_per_sample_f1_stack.png", tool_colors)
 
     if runtime_summary:
+        # Keep legacy filename for continuity
         plot_runtime(runtime_summary, out_root / "fig_cpu_time_by_tool.png", tool_colors)
+        # Also emit an explicit wall-time figure for clarity
+        plot_runtime(runtime_summary, out_root / "fig_wall_time_by_tool.png", tool_colors)
         plot_memory(runtime_summary, out_root / "fig_peak_memory_by_tool.png", tool_colors)
 
 

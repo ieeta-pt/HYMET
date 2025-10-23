@@ -541,6 +541,7 @@ Useful after manual tweaks to converter scripts:
 - `fig_l1_braycurtis.png`
 - `fig_per_sample_f1_stack.png`
 - `fig_cpu_time_by_tool.png`
+- `fig_wall_time_by_tool.png`
 - `fig_peak_memory_by_tool.png`
 - `fig_contig_accuracy_heatmap.png`
 
