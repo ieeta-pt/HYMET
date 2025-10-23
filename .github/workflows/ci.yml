@@ -19,7 +19,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           micromamba-version: "latest"
-          environment-file: environment.yml
+          environment-file: environment.lock.yml
           cache-environment: true
           cache-downloads: true
           create-args: >-
@@ -35,9 +35,9 @@ jobs:
         shell: bash -l {0}
         run: |
           micromamba run -n hymet-ci ./bin/hymet version
-          micromamba run -n hymet-ci ./bin/hymet run --contigs bench/data/cami_i_lc/contigs.fna --out out/ci --threads 1 --dry-run || true
-          micromamba run -n hymet-ci ./bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run || true
-          micromamba run -n hymet-ci ./bin/hymet case --manifest case/manifest.tsv --dry-run || true
+          micromamba run -n hymet-ci ./bin/hymet run --contigs bench/data/cami_i_lc/contigs.fna --out out/ci-smoke --threads 1 --dry-run
+          micromamba run -n hymet-ci ./bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run
+          micromamba run -n hymet-ci ./bin/hymet case --manifest case/manifest.tsv --dry-run
 
       - name: Run unit tests
         shell: bash -l {0}
