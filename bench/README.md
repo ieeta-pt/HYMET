@@ -95,6 +95,13 @@ Capture an exact environment snapshot after modifications:
 micromamba env export -n hymet-benchmark > environment.lock.yml
 ```
 
+### 4.1 Reproducibility
+
+- Prefer running with the locked environment (`environment.lock.yml`) for exact versions.
+- Database locations are passed via environment variables; avoid hard‑coding paths in scripts.
+- The harness writes all per‑run artefacts under `bench/out/` and regenerates aggregate tables and figures deterministically from those artefacts.
+- Recovery utilities that attempted to “rebuild” or “restore” runtime logs from previous commits have been removed to keep results provenance clear. If a runtime table is missing, re‑run the affected tool or stage instead of reconstructing from history.
+
 ## 5. Database Builders & External Tool Setup
 
 All builders live in `bench/db/` and write `.build.stamp` files to avoid redundant work.
@@ -396,7 +403,39 @@ SnakeMAGs is a Snakemake workflow that normally consumes raw Illumina reads. For
 4. **Outputs**:
    - `out/<sample>/snakemags/profile.cami.tsv`
    - `out/<sample>/snakemags/classified_sequences.tsv`
-   - GTDB-Tk summaries retained under `out/<sample>/snakemags/run/` unless `SNAKEMAGS_KEEP_WORK=0` (default cleans up).
+  - GTDB-Tk summaries retained under `out/<sample>/snakemags/run/` unless `SNAKEMAGS_KEEP_WORK=0` (default cleans up).
+
+### 5.10 Metalign Workflow
+
+Metalign is a read-based profiler. The harness synthesizes single-end reads from contigs, runs Metalign, and normalizes its CAMI-style output.
+
+1. Install prerequisites and database:
+   - Preferred: install via Bioconda. The builder will install Metalign into `/opt/conda` if missing and fetch the reference data into `bench/db/metalign/data`:
+     ```bash
+     ./db/build_metalign.sh
+     ```
+   - Override locations via environment:
+     - `METALIGN_ENV_PREFIX=/custom/conda/prefix`
+     - `METALIGN_DB_DIR=/data/ref/metalign/data` (to avoid re-downloading)
+
+2. Execute on a single sample:
+   ```bash
+   THREADS=8 ./run_metalign.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   ```
+   Optional toggles:
+   - `METALIGN_PRESET=--precise` (or `--sensitive`)
+   - `METALIGN_OPTS="--length_normalize --rank_renormalize"`
+   - `METALIGN_CHUNK_SIZE=250 METALIGN_MIN_CHUNK=100` to adjust synthetic reads.
+
+3. Batch mode:
+   ```bash
+   THREADS=8 ./run_all_cami.sh --tools metalign --no-build --resume
+   ```
+
+4. Outputs:
+   - `out/<sample>/metalign/profile.cami.tsv`
+   - `out/<sample>/metalign/metalign_abundances.tsv`
+   - Synthetic reads under `out/<sample>/metalign/run/`
 
 ## 6. Running the Benchmark
 
