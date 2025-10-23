@@ -8,7 +8,9 @@ HYMET_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DEST_DIR="${HYMET_ROOT}/data"
 CHECKSUMS_TSV="${HYMET_ROOT}/data/sketch_checksums.tsv"
-BASE_URL="${HYMET_SKETCH_BASE_URL:-}"
+# Published archive hosting the Mash sketches (override via HYMET_SKETCH_BASE_URL or --base-url)
+DEFAULT_BASE_URL="https://zenodo.org/records/17428354/files"
+BASE_URL="${HYMET_SKETCH_BASE_URL:-$DEFAULT_BASE_URL}"
 SKETCHES=(sketch1.msh sketch2.msh sketch3.msh)
 SKIP_VERIFY=0
 
@@ -17,7 +19,7 @@ usage(){
 Usage: tools/fetch_sketches.sh [--dest DIR] [--base-url URL] [--checksums FILE] [--skip-verify]
 
 Notes:
-  - If --base-url is omitted, uses HYMET_SKETCH_BASE_URL env var.
+  - If --base-url is omitted, uses HYMET_SKETCH_BASE_URL or the default Zenodo record.
   - Expected files: sketch1.msh, sketch2.msh, sketch3.msh
   - If a checksum for a file is present in the TSV, it will be verified.
     Missing checksum entries result in a warning (not an error) unless verification is enforced.
@@ -106,4 +108,3 @@ for name in "${SKETCHES[@]}"; do
 done
 
 echo "[fetch-sketches] All sketches downloaded."
-

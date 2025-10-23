@@ -10,7 +10,8 @@ case/out/
 case/out_*/
 case/ablation/
 cache/
-data/
+data/*
+!data/sketch_checksums.tsv
 !tests/data/
 debug/
 input/

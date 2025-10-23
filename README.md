@@ -64,7 +64,12 @@ your/env/bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.
 
 ## Preparing Data
 
-1. **References & taxonomy** – Fetch the Mash sketches via `tools/fetch_sketches.sh --base-url <ARCHIVE_URL>` (verifies against `data/sketch_checksums.tsv` when available). Place NCBI taxonomy dumps under `HYMET/taxonomy_files/`. Builders in `bench/db/` derive tool-specific indices on demand.
+1. **References & taxonomy** – Download the Mash sketches from the Zenodo archive (`10.5281/zenodo.17428354`) with:
+   ```bash
+   tools/fetch_sketches.sh    # defaults to the Zenodo record + checksum verification
+   tools/verify_sketches.sh   # optional: confirm local files match the archive
+   ```
+   Place NCBI taxonomy dumps under `HYMET/taxonomy_files/`. Builders in `bench/db/` derive tool-specific indices on demand.
 2. **CAMI subsets** – Use `bench/fetch_cami.sh` (supports `--dry-run`) to download the contigs listed in `bench/cami_manifest.tsv`.
 3. **Case-study contigs** – `case/fetch_case_data.sh` retrieves the MGnify gut assembly and Zymo mock community.
 4. **Truth tables** – CAMI truth lives under `bench/data/`; case-study truth files (including curated Zymo panels) live under `case/truth/`.
