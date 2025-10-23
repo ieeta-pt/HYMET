@@ -147,6 +147,31 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dry-run", action="store_true", help="Show commands without executing them")
 
 
+def git_version(repo_root: Path) -> str:
+    try:
+        # Prefer git metadata when available (source checkout)
+        commit = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        if commit:
+            return f"{commit}{'-dirty' if dirty else ''}"
+    except Exception:
+        pass
+    # Fallback to environment or unknown
+    env_ver = os.environ.get("HYMET_VERSION", "").strip()
+    return env_ver or "unknown"
+
+
+def command_version(args) -> None:
+    repo_root: Path = getattr(args, "repo_root", Path.cwd())
+    print(git_version(repo_root))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="HYMET unified command-line interface")
     parser.add_argument(
@@ -154,6 +179,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the HYMET repository. Defaults to HYMET_ROOT env or auto-discovery.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    ver_parser = subparsers.add_parser("version", help="Print HYMET version information")
+    ver_parser.set_defaults(func=command_version)
 
     run_parser = subparsers.add_parser("run", help="Run HYMET on a single sample")
     run_parser.add_argument("--contigs", required=True, help="Input contigs FASTA")

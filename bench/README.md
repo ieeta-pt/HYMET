@@ -405,38 +405,6 @@ SnakeMAGs is a Snakemake workflow that normally consumes raw Illumina reads. For
    - `out/<sample>/snakemags/classified_sequences.tsv`
   - GTDB-Tk summaries retained under `out/<sample>/snakemags/run/` unless `SNAKEMAGS_KEEP_WORK=0` (default cleans up).
 
-### 5.10 Metalign Workflow
-
-Metalign is a read-based profiler. The harness synthesizes single-end reads from contigs, runs Metalign, and normalizes its CAMI-style output.
-
-1. Install prerequisites and database:
-   - Preferred: install via Bioconda. The builder will install Metalign into `/opt/conda` if missing and fetch the reference data into `bench/db/metalign/data`:
-     ```bash
-     ./db/build_metalign.sh
-     ```
-   - Override locations via environment:
-     - `METALIGN_ENV_PREFIX=/custom/conda/prefix`
-     - `METALIGN_DB_DIR=/data/ref/metalign/data` (to avoid re-downloading)
-
-2. Execute on a single sample:
-   ```bash
-   THREADS=8 ./run_metalign.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
-   ```
-   Optional toggles:
-   - `METALIGN_PRESET=--precise` (or `--sensitive`)
-   - `METALIGN_OPTS="--length_normalize --rank_renormalize"`
-   - `METALIGN_CHUNK_SIZE=250 METALIGN_MIN_CHUNK=100` to adjust synthetic reads.
-
-3. Batch mode:
-   ```bash
-   THREADS=8 ./run_all_cami.sh --tools metalign --no-build --resume
-   ```
-
-4. Outputs:
-   - `out/<sample>/metalign/profile.cami.tsv`
-   - `out/<sample>/metalign/metalign_abundances.tsv`
-   - Synthetic reads under `out/<sample>/metalign/run/`
-
 ## 6. Running the Benchmark
 
 ### 6.1 HYMET CLI shortcuts

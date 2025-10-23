@@ -45,7 +45,7 @@ done
 MANIFEST="$(resolve_path "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
-DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags metalign)
+DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags)
 declare -A TOOL_SCRIPTS=(
   [hymet]="${SCRIPT_DIR}/run_hymet.sh"
   [kraken2]="${SCRIPT_DIR}/run_kraken2.sh"
@@ -62,14 +62,12 @@ declare -A TOOL_SCRIPTS=(
   [squeezemeta]="${SCRIPT_DIR}/run_squeezemeta.sh"
   [megapath_nano]="${SCRIPT_DIR}/run_megapath_nano.sh"
   [snakemags]="${SCRIPT_DIR}/run_snakemags.sh"
-  [metalign]="${SCRIPT_DIR}/run_metalign.sh"
 )
 declare -A TOOL_BUILDERS=(
   [kraken2]="${SCRIPT_DIR}/db/build_kraken2.sh"
   [centrifuge]="${SCRIPT_DIR}/db/build_centrifuge.sh"
   [ganon2]="${SCRIPT_DIR}/db/build_ganon2.sh"
   [sourmash_gather]="${SCRIPT_DIR}/db/build_sourmash.sh"
-  [metalign]="${SCRIPT_DIR}/db/build_metalign.sh"
 )
 
 IFS=',' read -r -a TOOLS <<< "${TOOLS_REQUEST}"
@@ -85,6 +83,9 @@ ensure_dir "${OUT_ROOT}"
 if [[ ${RESUME} -eq 0 ]]; then
   rm -f "${OUT_ROOT}/runtime_memory.tsv"
 fi
+
+# Persist a copy of the manifest used for this run
+cp -f "${MANIFEST}" "${OUT_ROOT}/manifest.snapshot.tsv" || true
 
 if [[ ${BUILD_DBS} -eq 1 ]]; then
   for tool in "${TOOLS[@]}"; do

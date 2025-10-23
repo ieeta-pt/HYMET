@@ -93,6 +93,24 @@ if [[ "${KEEP_HYMET_WORK:-0}" -eq 0 ]]; then
   rm -f "${CLASSIFIED_SRC}" "${PAF_SRC}" "${PROFILE_SRC}"
 fi
 
+git_commit="$(git -C "${HYMET_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+git_dirty="$(git -C "${HYMET_ROOT}" status --porcelain 2>/dev/null || echo '')"
+if [[ -n "${git_dirty}" && "${git_commit}" != "unknown" ]]; then git_commit="${git_commit}-dirty"; fi
+
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "hymet", "profile": "${PROFILE_DST}", "contigs": "${CLASSIFIED_META}", "paf": "${PAF_META}", "input_fasta": "${CONTIGS_ABS}", "run_dir": "${RUN_DIR}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "hymet",
+  "hymet_commit": "${git_commit}",
+  "threads": ${THREADS},
+  "cache_root": "${CACHE_ROOT_EFFECTIVE}",
+  "cand_max": ${CAND_MAX_EFFECTIVE},
+  "species_dedup": ${SPECIES_DEDUP_EFFECTIVE},
+  "assembly_summary_dir": "${ASSEMBLY_SUMMARY_DIR_EFFECTIVE}",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CLASSIFIED_META}",
+  "paf": "${PAF_META}",
+  "input_fasta": "${CONTIGS_ABS}",
+  "run_dir": "${RUN_DIR}"
+}
 EOF

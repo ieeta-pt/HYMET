@@ -132,9 +132,15 @@ with open(summary_path, "a", newline="") as out:
         writer.writerow([sample_id, f"top_{entry['Rank']}", f"{entry['TaxPathSN']} ({entry['Percentage']})"])
 PY
 
+  git_commit="$(git -C "${HYMET_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+  git_dirty="$(git -C "${HYMET_ROOT}" status --porcelain 2>/dev/null || echo '')"
+  if [[ -n "${git_dirty}" && "${git_commit}" != "unknown" ]]; then git_commit="${git_commit}-dirty"; fi
+
   cat > "${sample_out}/metadata.json" <<EOF
 {
   "sample_id": "${sample_id}",
+  "hymet_commit": "${git_commit}",
+  "threads": ${THREADS},
   "contigs": "${contigs_abs}",
   "truth_contigs": "${truth_contigs}",
   "truth_profile": "${truth_profile}",
