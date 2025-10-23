@@ -22,6 +22,37 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
   <img src="results/case/fig_case_top_taxa_panels.png" alt="Case study top taxa" width="32%">
 </p>
 
+## Benchmark Figures
+
+<p align="center">
+  <img src="results/bench/fig_f1_by_rank_lines.png" alt="F1 by rank (lines)" width="48%">
+  <img src="results/bench/fig_accuracy_by_rank.png" alt="Contig accuracy by rank" width="48%">
+</p>
+
+<p align="center">
+  <img src="results/bench/fig_l1_braycurtis.png" alt="Abundance error (L1 & Bray–Curtis)" width="48%">
+  <img src="results/bench/fig_l1_braycurtis_lines.png" alt="Abundance error (lines)" width="48%">
+</p>
+
+<p align="center">
+  <img src="results/bench/fig_per_sample_f1_stack.png" alt="Per‑sample stacked F1 (species)" width="48%">
+  <img src="results/bench/fig_cpu_time_by_tool.png" alt="CPU time by tool" width="48%">
+</p>
+
+<p align="center">
+  <img src="results/bench/fig_peak_memory_by_tool.png" alt="Peak memory by tool" width="48%">
+</p>
+
+### Discussion
+
+- Species‑rank F1: TAMA (~79.5%), MetaPhlAn4 (~75.5%), Kraken2 (~69.4%), and HYMET (~62.6%) lead on the CAMI panels. HYMET is strongest at genus/family where its weighted LCA over long contigs is most effective.
+- Genus/Family: HYMET averages ~89.5%/~98% F1, with MegaPath‑Nano and TAMA close behind; Kraken2 and MetaPhlAn4 also perform consistently.
+- Contig accuracy: HYMET maintains ~86% species‑level contig accuracy on average; Kraken2 ~74%. Tools without per‑contig outputs appear as zeros in the contig plots.
+- Abundance error: L1 and Bray–Curtis curves increase toward species for all tools; the ranking largely mirrors the F1 ordering at each rank.
+- Runtime/Memory: Kraken2/MetaPhlAn4/HYMET are mid‑range; SnakeMAGs and ViWrap are heavier. See the CPU/memory plots for averages across samples.
+
+All figures are automatically regenerated under `results/bench/` after each run; see also the TSVs in `bench/out/` for the numeric values used by the plots.
+
 ## What’s Included
 
 | Directory | Purpose |
