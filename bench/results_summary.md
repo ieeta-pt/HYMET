@@ -51,14 +51,17 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 
 ## 3. Latest results (aggregated across CAMI samples)
 
-This section summarises the current benchmark after refreshing all aggregates and figures from `bench/out/`. HYMET delivers the strongest overall performance (mean F1 ≈ 83.9 across ranks) and best contig-level accuracy, while different tools lead at specific taxonomic depths.
+This section summarises the current benchmark after refreshing all aggregates and figures from `bench/out/`. HYMET delivers the strongest overall performance (mean F1 ≈ 83.9 across ranks) and the best contig-level accuracy, while other tools peak at specific taxonomic depths.
+
+Overall mean F1 (averaged across all ranks):
+- HYMET ≈ 83.9% (highest overall)
+- MetaPhlAn4 ≈ 78.8%, Kraken2 ≈ 76.8%, MegaPath‑Nano ≈ 74.5%, TAMA ≈ 73.1%
 
 Species-rank F1 (mean across samples):
-- HYMET ≈ 62.6% (top performer once all ranks are averaged)
-- TAMA ≈ 79.5%, MetaPhlAn4 ≈ 75.5%, Kraken2 ≈ 69.4%
-- MegaPath‑Nano ≈ 45.6%, sourmash gather ≈ 42.9%, SnakeMAGs ≈ 35.7%, phyloFlash ≈ 27.6%
-- BASTA ≈ 22.4%, Centrifuge ≈ 22.6%, Ganon2 ≈ 23.8%
-- CAMITAX, PhaBOX, SqueezeMeta, ViWrap ≈ 0% (species-level signal absent in their current pipelines or converters on these CAMI bacterial panels).
+- MetaPhlAn4 ≈ 74.4%, HYMET ≈ 60.2%, Kraken2 ≈ 54.8%, TAMA ≈ 50.8%
+- MegaPath‑Nano ≈ 32.2%, sourmash gather ≈ 5.4%, SnakeMAGs ≈ 14.1%, phyloFlash ≈ 16.1%
+- BASTA ≈ 8.2%, Centrifuge ≈ 6.6%, Ganon2 ≈ 6.7%
+- CAMITAX, PhaBOX, SqueezeMeta, ViWrap ≈ 0% (their current CAMI pipelines emit no confident species-level assignments under our converters).
 
 Higher ranks (mean F1):
 - Genus: HYMET (~89.5%) leads, followed by MegaPath‑Nano (~86%) and TAMA (~83.5%); Kraken2 (~78.7%) and MetaPhlAn4 (~74.7%) round out the leaders.
@@ -81,8 +84,8 @@ Runtime and peak memory (means across “run” stages):
 
 ![F1 by rank](../results/bench/fig_f1_by_rank_lines.png)
 
-- HYMET’s curve sits highest across almost every rank, illustrating its balanced precision/recall profile. It only concedes the top spot at species, where TAMA edges ahead.
-- MetaPhlAn4 and Kraken2 remain competitive down to species, while MegaPath‑Nano and TAMA excel at intermediate ranks but taper more sharply at the deepest tier.
+- HYMET’s curve stays highest from superkingdom through family, reflecting its balanced precision/recall. Species-level leadership switches to MetaPhlAn4, with HYMET, Kraken2, and TAMA following.
+- TAMA and MegaPath‑Nano perform strongly at intermediate ranks but decline more sharply at species.
 
 ### Abundance error (L1 & Bray–Curtis)
 
@@ -143,3 +146,6 @@ See the discussion sections following each figure above.
 - **BASTA (DIAMOND backend)** – Now executed against a UniProt Swiss-Prot subset converted to DIAMOND; run times range from ~7 s on the CAMI I panels to ~5.5 min for `cami_sample_0`. The converter emits CAMI-compliant profiles and contig assignments, delivering high precision at upper ranks (superkingdom/phylum ≥100% on most samples) while keeping the overall benchmark turnaround on par with the other profilers. Species-level recall remains bounded by protein coverage but is captured in the updated summary tables.
 - **PhaBOX** – Integrated via the bench runner to re-label contigs, execute `phabox2`, and parse `phagcn_prediction.tsv`. Outputs feed CAMI evaluation (profile + contig assignments). Runtime depends on the PhaBOX database size, but using the CLI natively keeps wall-clock comparable to other profilers when DIAMOND acceleration is available.
 - **Viral-only tools** – PhaBOX (and any other viral classifiers) still score near-zero on the bacterial CAMI datasets; with the roll-up in place, those zeros are genuine false positives/negatives rather than a converter gap.
+- HYMET maintains >90% accuracy through genus and ~86% at species, underscoring the value of long-contig alignment+LCA.
+- Kraken2 is the only other tool above 70% at species. ganon2 and Centrifuge lag, and other pipelines omit contig outputs entirely (hence no curve).
+  MetaPhlAn4, sourmash gather, TAMA, etc., do not provide per-contig assignments in the current harness, so they are intentionally absent.
