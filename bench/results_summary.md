@@ -83,14 +83,67 @@ Runtime and peak memory (means across “run” stages):
 - Mid‑pack: Kraken2 (~0.42 min, ~11.15 GB), HYMET (~1.96 min, ~17.36 GB), phyloFlash (~0.95 min, ~4.34 GB), Centrifuge (~1.13 min, ~0.32 GB), MegaPath‑Nano (~0.79 min, ~11.49 GB), BASTA (~4.36 min, ~2.28 GB), MetaPhlAn4 (~4.63 min, ~18.76 GB).
 - Heavier: SnakeMAGs (~17.4 min, ~28.9 GB), ViWrap (~87.9 min, ~18.4 GB).
 
-Figures (see `bench/out/`):
-- F1 by rank (bars): `bench/out/fig_f1_by_rank.png`
-- F1 by rank (lines): `bench/out/fig_f1_by_rank_lines.png`
-- Abundance error L1/Bray–Curtis (bars): `bench/out/fig_l1_braycurtis.png`
-- Abundance error L1/Bray–Curtis (lines): `bench/out/fig_l1_braycurtis_lines.png`
-- Contig accuracy by rank (bars): `bench/out/fig_accuracy_by_rank.png`
-- Contig accuracy by rank (lines): `bench/out/fig_accuracy_by_rank_lines.png`
-- Runtime and memory: `bench/out/fig_cpu_time_by_tool.png`, `bench/out/fig_peak_memory_by_tool.png`
+### F1 by rank (bars)
+
+![F1 by rank (bars)](../results/bench/fig_f1_by_rank.png)
+
+- Species‑rank leaders: TAMA (~79.5%), MetaPhlAn4 (~75.5%), Kraken2 (~69.4%), HYMET (~62.6%).
+- At genus/family, HYMET leads on mean F1 (~89.5%/~98%), with MegaPath‑Nano and TAMA close.
+- CAMITAX/PhaBOX/SqueezeMeta/ViWrap show near‑zero species‑level F1 on these bacterial CAMI panels.
+
+### F1 by rank (lines)
+
+![F1 by rank (lines)](../results/bench/fig_f1_by_rank_lines.png)
+
+- End labels show per‑tool trajectories across ranks; the top‑3 are highlighted.
+- Relative ordering remains stable across ranks; HYMET’s advantage increases toward family/genus.
+
+### Abundance error (L1 & Bray–Curtis, bars)
+
+![Abundance error (bars)](../results/bench/fig_l1_braycurtis.png)
+
+- Error rises toward species for all profilers; tools with higher F1 have lower error at each rank.
+- HYMET/TAMA/MetaPhlAn4 keep comparatively lower error at genus/family.
+
+### Abundance error (lines)
+
+![Abundance error (lines)](../results/bench/fig_l1_braycurtis_lines.png)
+
+- Lines emphasise the monotonic increase in error from superkingdom → species.
+- Ordering mirrors the F1 plots, underscoring precision/recall trade‑offs at deep ranks.
+
+### Contig accuracy by rank (bars)
+
+![Contig accuracy (bars)](../results/bench/fig_accuracy_by_rank.png)
+
+- HYMET achieves ~86% average species‑level contig accuracy; Kraken2 ~74%.
+- Tools lacking per‑contig outputs under these converters appear as zeros here.
+
+### Contig accuracy by rank (lines)
+
+![Contig accuracy (lines)](../results/bench/fig_accuracy_by_rank_lines.png)
+
+- Line view of contig accuracy reinforces HYMET’s gap at genus/species.
+
+### Per‑sample stacked F1 (species)
+
+![Per‑sample F1 stack](../results/bench/fig_per_sample_f1_stack.png)
+
+- Shows dataset sensitivity: marine/mock communities benefit most from richer references and consensus schemes.
+
+### CPU time by tool
+
+![CPU time by tool](../results/bench/fig_cpu_time_by_tool.png)
+
+- Fast/light: CAMITAX, ganon2, sourmash gather.
+- Mid‑range: Kraken2, HYMET, phyloFlash, Centrifuge, MegaPath‑Nano, BASTA, MetaPhlAn4.
+- Heavy: SnakeMAGs, ViWrap.
+
+### Peak memory by tool
+
+![Peak memory by tool](../results/bench/fig_peak_memory_by_tool.png)
+
+- Peak RSS spans sub‑GB (ganon2) to ~29 GB (SnakeMAGs); HYMET ~17 GB, Kraken2/MetaPhlAn4 ~11–19 GB.
 
 Tables (CSV/TSV):
 - Per‑sample, per‑rank metrics: `bench/out/summary_per_tool_per_sample.tsv`
@@ -108,11 +161,7 @@ HYMET_TAXID_MIN_SUPPORT=1 HYMET_TAXID_MIN_WEIGHT=0
 Candidate logs (`out/<sample>/hymet/logs/candidate_limit.log`) confirm the pruning: `cami_sample_0` keeps 200 of 37,556 Mash hits, while smaller panels such as `cami_i_lc` retain their full 147 deduplicated candidates. Run metadata and resource usage live in `bench/out/runtime_memory.tsv`.
 
 ### Figure interpretations
-- F1 by rank (bars/lines): show the relative ordering per rank; TAMA/MetaPhlAn4/Kraken2 lead at species while HYMET, MegaPath‑Nano, and TAMA dominate genus/family.
-- Contig accuracy by rank: HYMET maintains high contig‑level accuracy through genus (~90%+) and remains strong at species; Kraken2 follows. Tools without per‑contig outputs appear as zeros here.
-- L1/Bray–Curtis: error curves increase toward species; tools with higher F1 generally exhibit lower abundance error at the same rank.
-- Per‑sample F1 stack: highlights dataset sensitivity (marine/mock panels benefit most from richer references and consensus schemes).
-- Runtime/memory: Kraken2/MetaPhlAn4/HYMET occupy the mid‑range; SnakeMAGs/ViWrap are the outliers in time/peak RSS.
+See the discussion sections following each figure above.
 
 ### Tool-specific notes
 - **Kraken2/Bracken** – The rebuilt Bracken database (`database150mers.kmer_distrib`) now feeds the evaluation, lifting mean species-level F1 to ~55% (precision 69%, recall 47%).
