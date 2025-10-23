@@ -22,24 +22,23 @@ jobs:
           environment-file: environment.lock.yml
           cache-environment: true
           cache-downloads: true
-          create-args: >-
-            -n hymet-ci
+          activate-environment: hymet_env_locked
 
       - name: Show versions
         shell: bash -l {0}
         run: |
           micromamba info
-          micromamba run -n hymet-ci python -V
+          micromamba run -n hymet_env_locked python -V
 
       - name: CLI smoke checks (dry-run)
         shell: bash -l {0}
         run: |
-          micromamba run -n hymet-ci ./bin/hymet version
-          micromamba run -n hymet-ci ./bin/hymet run --contigs bench/data/cami_i_lc/contigs.fna --out out/ci-smoke --threads 1 --dry-run
-          micromamba run -n hymet-ci ./bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run
-          micromamba run -n hymet-ci ./bin/hymet case --manifest case/manifest.tsv --dry-run
+          micromamba run -n hymet_env_locked ./bin/hymet version
+          micromamba run -n hymet_env_locked ./bin/hymet run --contigs bench/data/cami_i_lc/contigs.fna --out out/ci-smoke --threads 1 --dry-run
+          micromamba run -n hymet_env_locked ./bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run
+          micromamba run -n hymet_env_locked ./bin/hymet case --manifest case/manifest.tsv --dry-run
 
       - name: Run unit tests
         shell: bash -l {0}
         run: |
-          micromamba run -n hymet-ci pytest -q
+          micromamba run -n hymet_env_locked pytest -q
