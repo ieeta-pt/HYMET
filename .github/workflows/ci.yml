@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, case-study-ablation ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONHASHSEED: "0"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "latest"
+          environment-file: HYMET/environment.yml
+          cache-environment: true
+          cache-downloads: true
+          create-args: >-
+            -n hymet-ci
+
+      - name: Show versions
+        shell: bash -l {0}
+        run: |
+          micromamba info
+          micromamba run -n hymet-ci python -V
+
+      - name: CLI smoke checks (dry-run)
+        shell: bash -l {0}
+        run: |
+          cd HYMET
+          micromamba run -n hymet-ci ./bin/hymet version
+          micromamba run -n hymet-ci ./bin/hymet run --contigs bench/data/cami_i_lc/contigs.fna --out out/ci --threads 1 --dry-run || true
+          micromamba run -n hymet-ci ./bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run || true
+          micromamba run -n hymet-ci ./bin/hymet case --manifest case/manifest.tsv --dry-run || true
+
+      - name: Run unit tests
+        shell: bash -l {0}
+        run: |
+          cd HYMET
+          micromamba run -n hymet-ci pytest -q

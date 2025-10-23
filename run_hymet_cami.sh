@@ -16,6 +16,9 @@
 
 set -Eeuo pipefail
 
+# Deterministic Python hashing for downstream helpers
+export PYTHONHASHSEED="0"
+
 # ----------------- params -----------------
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${ROOT:-${SCRIPT_ROOT}}"

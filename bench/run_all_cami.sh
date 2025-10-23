@@ -3,6 +3,9 @@
 
 set -Eeuo pipefail
 
+# Ensure deterministic Python behavior for any helper scripts invoked
+export PYTHONHASHSEED="0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 export PATH="${SCRIPT_DIR}/bin:${PATH}"

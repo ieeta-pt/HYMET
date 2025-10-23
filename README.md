@@ -60,11 +60,11 @@ your/env/bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.
 | **Bioconda / mamba** | `mamba install -c bioconda hymet` | Installs the CLI and dependencies into the active environment. |
 | **Docker** | `docker build -t hymet .`<br>`docker run --rm -it hymet hymet --help` | Image bundles the benchmark harness; bind data/cache directories as needed. |
 | **Singularity / Apptainer** | `apptainer build hymet.sif Singularity.def`<br>`apptainer exec hymet.sif hymet --help` | Mirrors the Docker build for HPC clusters. |
-| **Source checkout** | `git clone https://github.com/ieeta-pt/HYMET.git`<br>`cd HYMET`<br>`mamba env create -f environment.yml` | Recommended for development; activate the environment before using `bin/hymet`. |
+| **Source checkout** | `git clone https://github.com/ieeta-pt/HYMET.git`<br>`cd HYMET`<br>`mamba env create -f environment.yml` | Recommended for development; activate the environment before using `bin/hymet`. For exact pins, use `environment.lock.yml`. |
 
 ## Preparing Data
 
-1. **References & taxonomy** – Place downloaded `data/sketch*.msh` files and NCBI taxonomy dumps under `HYMET/data/` and `HYMET/taxonomy_files/`. Builders in `bench/db/` derive tool-specific indices on demand.
+1. **References & taxonomy** – Fetch the Mash sketches via `tools/fetch_sketches.sh --base-url <ARCHIVE_URL>` (verifies against `data/sketch_checksums.tsv` when available). Place NCBI taxonomy dumps under `HYMET/taxonomy_files/`. Builders in `bench/db/` derive tool-specific indices on demand.
 2. **CAMI subsets** – Use `bench/fetch_cami.sh` (supports `--dry-run`) to download the contigs listed in `bench/cami_manifest.tsv`.
 3. **Case-study contigs** – `case/fetch_case_data.sh` retrieves the MGnify gut assembly and Zymo mock community.
 4. **Truth tables** – CAMI truth lives under `bench/data/`; case-study truth files (including curated Zymo panels) live under `case/truth/`.
@@ -99,4 +99,4 @@ The maintained workflow is through the Python CLI. Legacy scripts (`config.pl`, 
 ## Support & Citation
 
 - Open issues and feature requests on the GitHub tracker.
-- Cite HYMET using the forthcoming `CITATION.cff` once published.
+- Cite HYMET using `CITATION.cff` in this repository.
