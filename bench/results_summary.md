@@ -83,43 +83,21 @@ Runtime and peak memory (means across “run” stages):
 - Mid‑pack: Kraken2 (~0.42 min, ~11.15 GB), HYMET (~1.96 min, ~17.36 GB), phyloFlash (~0.95 min, ~4.34 GB), Centrifuge (~1.13 min, ~0.32 GB), MegaPath‑Nano (~0.79 min, ~11.49 GB), BASTA (~4.36 min, ~2.28 GB), MetaPhlAn4 (~4.63 min, ~18.76 GB).
 - Heavier: SnakeMAGs (~17.4 min, ~28.9 GB), ViWrap (~87.9 min, ~18.4 GB).
 
-### F1 by rank (bars)
-
-![F1 by rank (bars)](../results/bench/fig_f1_by_rank.png)
-
-- Species‑rank leaders: TAMA (~79.5%), MetaPhlAn4 (~75.5%), Kraken2 (~69.4%), HYMET (~62.6%).
-- At genus/family, HYMET leads on mean F1 (~89.5%/~98%), with MegaPath‑Nano and TAMA close.
-- CAMITAX/PhaBOX/SqueezeMeta/ViWrap show near‑zero species‑level F1 on these bacterial CAMI panels.
-
-### F1 by rank (lines)
+### F1 by rank
 
 ![F1 by rank (lines)](../results/bench/fig_f1_by_rank_lines.png)
 
 - End labels show per‑tool trajectories across ranks; the top‑3 are highlighted.
 - Relative ordering remains stable across ranks; HYMET’s advantage increases toward family/genus.
 
-### Abundance error (L1 & Bray–Curtis, bars)
-
-![Abundance error (bars)](../results/bench/fig_l1_braycurtis.png)
-
-- Error rises toward species for all profilers; tools with higher F1 have lower error at each rank.
-- HYMET/TAMA/MetaPhlAn4 keep comparatively lower error at genus/family.
-
-### Abundance error (lines)
+### Abundance error (L1 & Bray–Curtis)
 
 ![Abundance error (lines)](../results/bench/fig_l1_braycurtis_lines.png)
 
 - Lines emphasise the monotonic increase in error from superkingdom → species.
 - Ordering mirrors the F1 plots, underscoring precision/recall trade‑offs at deep ranks.
 
-### Contig accuracy by rank (bars)
-
-![Contig accuracy (bars)](../results/bench/fig_accuracy_by_rank.png)
-
-- HYMET achieves ~86% average species‑level contig accuracy; Kraken2 ~74%.
-- Tools lacking per‑contig outputs under these converters appear as zeros here.
-
-### Contig accuracy by rank (lines)
+### Contig accuracy by rank
 
 ![Contig accuracy (lines)](../results/bench/fig_accuracy_by_rank_lines.png)
 
