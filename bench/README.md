@@ -85,6 +85,8 @@ Database builders expect a shared FASTA (`refsets/combined_subset.fasta`). Build
 
 ```bash
 cd HYMET/bench
+# Prefer the locked environment when available for exact versions
+micromamba env create -f environment.lock.yml -n hymet-benchmark || \
 micromamba env create -f environment.yml -n hymet-benchmark
 micromamba activate hymet-benchmark
 ```
