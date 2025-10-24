@@ -33,9 +33,15 @@ def command_run(args) -> None:
     repo_root: Path = args.repo_root
     env = os.environ.copy()
     env["ROOT"] = str(repo_root)
-    env["INPUT_FASTA"] = str(Path(args.contigs).resolve())
+    if args.contigs:
+        env["INPUT_MODE"] = "contigs"
+        env["INPUT_FASTA"] = str(Path(args.contigs).resolve())
+    else:
+        env["INPUT_MODE"] = "reads"
+        env["INPUT_READS"] = str(Path(args.reads).resolve())
     env["OUTDIR"] = str(Path(args.out).resolve())
-    env["THREADS"] = str(args.threads)
+    if args.threads is not None:
+        env["THREADS"] = str(args.threads)
     if args.cand_max is not None:
         env["CAND_MAX"] = str(args.cand_max)
     if args.species_dedup:
@@ -160,10 +166,36 @@ def command_artifacts(args) -> None:
         print("[hymet] bench/out/ missing; skipping CAMI aggregation")
 
     case_out = case_root / "out"
+    case_cmd: Optional[List[str]] = None
     if case_out.is_dir():
-        run_command([python_cmd, str(case_root / "plot_case.py")], cwd=case_root, dry_run=args.dry_run)
+        case_cmd = [python_cmd, str(case_root / "plot_case.py")]
     else:
-        print("[hymet] case/out/ missing; skipping case-study figures")
+        results_root = case_root.parent / "results" / "cases"
+        candidates = []
+        if results_root.is_dir():
+            for suite_dir in results_root.iterdir():
+                if not suite_dir.is_dir():
+                    continue
+                for run_dir in suite_dir.iterdir():
+                    if run_dir.is_dir() and run_dir.name.startswith("run_"):
+                        candidates.append(run_dir)
+        if candidates:
+            latest = sorted(candidates, key=lambda p: p.name)[-1]
+            raw_dir = latest / "raw"
+            figures_dir = latest / "figures"
+            if raw_dir.is_dir():
+                case_cmd = [
+                    python_cmd,
+                    str(case_root / "plot_case.py"),
+                    "--case-root",
+                    str(raw_dir),
+                    "--figures-dir",
+                    str(figures_dir),
+                ]
+    if case_cmd:
+        run_command(case_cmd, cwd=case_root, dry_run=args.dry_run)
+    else:
+        print("[hymet] No case-study outputs detected; skipping case-study figures")
 
     summary_path = case_root / "ablation_summary.tsv"
     if summary_path.is_file():
@@ -229,7 +261,9 @@ def build_parser() -> argparse.ArgumentParser:
     ver_parser.set_defaults(func=command_version)
 
     run_parser = subparsers.add_parser("run", help="Run HYMET on a single sample")
-    run_parser.add_argument("--contigs", required=True, help="Input contigs FASTA")
+    input_group = run_parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--contigs", help="Input contigs FASTA")
+    input_group.add_argument("--reads", help="Input reads FASTQ/FASTA")
     run_parser.add_argument("--out", required=True, help="Output directory")
     run_parser.add_argument("--cand-max", type=int, help="Maximum Mash candidates (CAND_MAX)")
     run_parser.add_argument("--species-dedup", action="store_true", help="Enable species-level candidate deduplication")
