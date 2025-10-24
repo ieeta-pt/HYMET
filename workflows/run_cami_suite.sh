@@ -22,6 +22,7 @@ SUITE_NAME="custom"
 SCENARIO_SET=0
 SUITE_SET=0
 MODES="contigs,reads"
+PRIMARY_MODE=""
 THREADS="${THREADS:-16}"
 CACHE_ROOT=""
 DRY_RUN=0
@@ -45,6 +46,7 @@ Options:
   --cache-root PATH      Override CACHE_ROOT for HYMET runs
   --contig-tools LIST    Tool list for contig mode (override default)
   --read-tools LIST      Tool list for read mode (override default)
+  --primary-mode NAME    Mode whose outputs populate top-level figures/tables (default: first mode)
   --bench-extra "ARGS"   Extra args forwarded to bin/hymet bench
   --suite-path REL/PATH  Custom results/<path> target (instead of scenario/suite)
   --dry-run              Record metadata without executing the benchmark
@@ -52,6 +54,53 @@ Options:
   -h, --help             Show this message
 USAGE
   exit 1
+}
+
+copy_runtime_with_mode(){
+  local src="$1"
+  local dst="$2"
+  local mode="$3"
+  [[ -f "${src}" ]] || return 0
+  python3 - "$src" "$dst" "$mode" <<'PY'
+import csv, sys, pathlib
+src_path, dst_path, mode = sys.argv[1:4]
+src = pathlib.Path(src_path)
+dst = pathlib.Path(dst_path)
+if not src.is_file():
+    raise SystemExit(0)
+with src.open(newline="") as fh:
+    reader = csv.DictReader(fh, delimiter="\t")
+    rows = list(reader)
+    fieldnames = reader.fieldnames or []
+if not rows:
+    raise SystemExit(0)
+if "mode" not in fieldnames:
+    idx = 2 if len(fieldnames) >= 2 else len(fieldnames)
+    fieldnames = fieldnames[:idx] + ["mode"] + fieldnames[idx:]
+    for row in rows:
+        row["mode"] = mode
+else:
+    for row in rows:
+        row["mode"] = row.get("mode") or mode
+dst.parent.mkdir(parents=True, exist_ok=True)
+with dst.open("w", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({key: row.get(key, "") for key in fieldnames})
+PY
+}
+
+append_runtime_aggregate(){
+  local src="$1"
+  local dst="$2"
+  [[ -f "${src}" ]] || return 0
+  mkdir -p "$(dirname "${dst}")"
+  if [[ ! -s "${dst}" ]]; then
+    cp "${src}" "${dst}"
+  else
+    tail -n +2 "${src}" >> "${dst}"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -64,6 +113,7 @@ while [[ $# -gt 0 ]]; do
     --cache-root) CACHE_ROOT="$2"; shift 2;;
     --contig-tools) CONTIG_TOOLS="$2"; shift 2;;
     --read-tools) READ_TOOLS="$2"; shift 2;;
+    --primary-mode) PRIMARY_MODE="$2"; shift 2;;
     --bench-extra) BENCH_EXTRA="$2"; shift 2;;
     --suite-path) SUITE_PATH_ARG="$2"; shift 2;;
     --dry-run) DRY_RUN=1; shift;;
@@ -90,6 +140,10 @@ MANIFEST="$(cd "${HYMET_ROOT}" && python3 -c 'import pathlib, sys; p=pathlib.Pat
 CONTIG_TOOLS="${CONTIG_TOOLS:-${CONTIG_TOOLS_DEFAULT:-hymet,kraken2}}"
 READ_TOOLS="${READ_TOOLS:-${READ_TOOLS_DEFAULT:-hymet_reads}}"
 IFS=',' read -r -a MODE_LIST <<< "${MODES}"
+if [[ -z "${PRIMARY_MODE}" && ${#MODE_LIST[@]} -gt 0 ]]; then
+  PRIMARY_MODE="${MODE_LIST[0]// /}"
+fi
+PRIMARY_MODE="${PRIMARY_MODE// /}"
 
 RUN_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 if [[ -n "${SUITE_PATH_ARG}" ]]; then
@@ -107,6 +161,7 @@ FIGURES_ROOT="${RUN_DIR}/figures"
 mkdir -p "${RAW_ROOT}" "${TABLES_ROOT}" "${FIGURES_ROOT}"
 
 commands_log=()
+primary_mirrored=0
 if [[ "${DRY_RUN}" -eq 0 ]]; then
   for mode in "${MODE_LIST[@]}"; do
     mode_trim="${mode// /}"
@@ -127,6 +182,7 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     if [[ -n "${CACHE_ROOT}" ]]; then
       env_prefix+=(CACHE_ROOT="${CACHE_ROOT}")
     fi
+    env_prefix+=(HYMET_BENCH_MODE="${mode_trim}")
     MODE_RAW="${RAW_ROOT}/${mode_trim}"
     mkdir -p "${MODE_RAW}"
     cmd=("${HYMET_ROOT}/bin/hymet" bench --manifest "${MANIFEST}" --tools "${tools}")
@@ -141,14 +197,33 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     mode_tables="${TABLES_ROOT}/${mode_trim}"
     mode_figs="${FIGURES_ROOT}/${mode_trim}"
     mkdir -p "${mode_tables}" "${mode_figs}"
-    for table in summary_per_tool_per_sample.tsv leaderboard_by_rank.tsv runtime_memory.tsv contig_accuracy_per_tool.tsv manifest.snapshot.tsv; do
+    for table in summary_per_tool_per_sample.tsv leaderboard_by_rank.tsv contig_accuracy_per_tool.tsv manifest.snapshot.tsv; do
       src="${MODE_RAW}/${table}"
       [[ -f "${src}" ]] && cp "${src}" "${mode_tables}/"
     done
     cp "${MODE_RAW}/"fig_*.png "${mode_figs}/" 2>/dev/null || true
+
+    runtime_src="${MODE_RAW}/runtime_memory.tsv"
+    if [[ -f "${runtime_src}" ]]; then
+      copy_runtime_with_mode "${runtime_src}" "${mode_tables}/runtime_memory.tsv" "${mode_trim}"
+      append_runtime_aggregate "${mode_tables}/runtime_memory.tsv" "${TABLES_ROOT}/runtime_memory.tsv"
+    fi
+
+    if [[ ${primary_mirrored} -eq 0 && "${mode_trim}" == "${PRIMARY_MODE}" ]]; then
+      for table in summary_per_tool_per_sample.tsv leaderboard_by_rank.tsv contig_accuracy_per_tool.tsv manifest.snapshot.tsv; do
+        src="${MODE_RAW}/${table}"
+        [[ -f "${src}" ]] && cp "${src}" "${TABLES_ROOT}/"
+      done
+      cp "${MODE_RAW}/"fig_*.png "${FIGURES_ROOT}/" 2>/dev/null || true
+      primary_mirrored=1
+    fi
   done
 else
   commands_log+=("dry_run modes=${MODES} contig_tools=${CONTIG_TOOLS} read_tools=${READ_TOOLS}")
+fi
+
+if [[ ${primary_mirrored} -eq 0 && "${DRY_RUN}" -eq 0 ]]; then
+  echo "[suite] WARNING: primary mode '${PRIMARY_MODE}' not found; top-level figures/tables were not populated" >&2
 fi
 
 if ((${#commands_log[@]})); then
@@ -167,6 +242,7 @@ THREADS="${THREADS}" \
 CONTIG_TOOLS="${CONTIG_TOOLS}" \
 READ_TOOLS="${READ_TOOLS}" \
 MODES="${MODES}" \
+PRIMARY_MODE="${PRIMARY_MODE}" \
 COMMANDS_LOG="${COMMANDS_TEXT}" \
 python3 - <<'PY'
 import json, pathlib, os
@@ -183,6 +259,7 @@ meta = {
     "contig_tools": os.environ['CONTIG_TOOLS'],
     "read_tools": os.environ['READ_TOOLS'],
     "modes": os.environ['MODES'].split(','),
+    "primary_mode": os.environ['PRIMARY_MODE'],
     "commands": os.environ['COMMANDS_LOG'].split('\n') if os.environ['COMMANDS_LOG'] else [],
     "git_commit": os.popen('git rev-parse HEAD').read().strip()
 }
