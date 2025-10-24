@@ -88,7 +88,7 @@ append_runtime_header(){
   if [[ ! -s "${path}" ]]; then
     ensure_dir "$(dirname "${path}")"
     cat <<'EOF' >"${path}"
-sample	tool	stage	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb
+sample	tool	mode	stage	started_at	finished_at	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb	command	exit_code
 EOF
   fi
 }

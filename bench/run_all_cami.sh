@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 # Run CAMI benchmark across samples and tools with optional database builds.
 
+# Re-exec with Bash if the script was invoked by /bin/sh or another shell.
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec /usr/bin/env bash "$0" "$@"
+fi
+
 set -Eeuo pipefail
+
+if (( BASH_VERSINFO[0] < 4 )); then
+  echo "ERROR: bench/run_all_cami.sh requires Bash >= 4" >&2
+  exit 1
+fi
 
 # Ensure deterministic Python behavior for any helper scripts invoked
 export PYTHONHASHSEED="0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 export PATH="${SCRIPT_DIR}/bin:${PATH}"
 
@@ -16,6 +27,10 @@ BUILD_DBS=1
 THREADS="${THREADS:-8}"
 RESUME=0
 MAX_SAMPLES=0
+SUITE_SCENARIO="${PUBLISH_SCENARIO:-cami}"
+SUITE_NAME="${PUBLISH_SUITE:-canonical}"
+SUITE_PATH=""
+PUBLISH_RESULTS=1
 
 usage(){
   cat <<'USAGE'
@@ -28,6 +43,10 @@ Options:
   --threads N         Thread count passed to runners (default: env THREADS or 8)
   --resume            Keep existing runtime log and outputs (default: overwrite runtime log)
   --max-samples N     Limit number of samples processed from manifest (0 = all)
+  --scenario NAME     Results namespace (default: cami)
+  --suite NAME        Suite name within the scenario (default: canonical)
+  --suite-path REL    Explicit path under results/ (overrides scenario/suite)
+  --no-publish        Skip publishing a run directory under results/
 USAGE
   exit 1
 }
@@ -40,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     --threads) THREADS="$2"; shift 2;;
     --resume) RESUME=1; shift;;
     --max-samples) MAX_SAMPLES="$2"; shift 2;;
+    --scenario) SUITE_SCENARIO="$2"; shift 2;;
+    --suite) SUITE_NAME="$2"; shift 2;;
+    --suite-path) SUITE_PATH="$2"; shift 2;;
+    --no-publish) PUBLISH_RESULTS=0; shift;;
     -h|--help) usage;;
     *) usage;;
   esac
@@ -48,9 +71,11 @@ done
 MANIFEST="$(resolve_path "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
-DEFAULT_TOOLS=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags)
+DEFAULT_CONTIG_TOOLS=(hymet kraken2 centrifuge ganon2 viwrap tama squeezemeta megapath_nano)
+DEFAULT_FULL_PANEL=(hymet kraken2 centrifuge ganon2 sourmash_gather metaphlan4 camitax phabox phyloflash viwrap squeezemeta megapath_nano snakemags)
 declare -A TOOL_SCRIPTS=(
   [hymet]="${SCRIPT_DIR}/run_hymet.sh"
+  [hymet_reads]="${SCRIPT_DIR}/run_hymet.sh"
   [kraken2]="${SCRIPT_DIR}/run_kraken2.sh"
   [centrifuge]="${SCRIPT_DIR}/run_centrifuge.sh"
   [ganon2]="${SCRIPT_DIR}/run_ganon2.sh"
@@ -74,17 +99,28 @@ declare -A TOOL_BUILDERS=(
 )
 
 IFS=',' read -r -a TOOLS <<< "${TOOLS_REQUEST}"
-if [[ ${#TOOLS[@]} -eq 1 && "${TOOLS[0]}" == "all" ]]; then
-  TOOLS=(${DEFAULT_TOOLS[@]})
+if [[ ${#TOOLS[@]} -eq 1 ]]; then
+  case "${TOOLS[0]}" in
+    ""|all)
+      TOOLS=("${DEFAULT_FULL_PANEL[@]}")
+      ;;
+    contigs)
+      TOOLS=("${DEFAULT_CONTIG_TOOLS[@]}")
+      ;;
+    reads)
+      TOOLS=("hymet_reads")
+      ;;
+  esac
 fi
 
 MEASURE="${SCRIPT_DIR}/lib/measure.sh"
 [[ -x "${MEASURE}" ]] || die "measure.sh not executable: ${MEASURE}"
 
-OUT_ROOT="${SCRIPT_DIR}/out"
+OUT_ROOT="${BENCH_OUT_ROOT:-${SCRIPT_DIR}/out}"
+RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
 ensure_dir "${OUT_ROOT}"
 if [[ ${RESUME} -eq 0 ]]; then
-  rm -f "${OUT_ROOT}/runtime_memory.tsv"
+  rm -f "${RUNTIME_TSV}"
 fi
 
 # Persist a copy of the manifest used for this run
@@ -134,15 +170,31 @@ while IFS=$'\t' read -r sample_id contigs truth_contigs truth_profile rest; do
     fi
 
     log "[sample=${sample_id}] Running tool ${tool}"
+    TOOL_DIR="${SAMPLE_DIR}/${tool}"
+    ensure_dir "${TOOL_DIR}"
+    TOOL_RUNTIME="${TOOL_DIR}/runtime_memory.tsv"
     run_cmd=("${script}" --sample "${sample_id}" --contigs "${contigs_abs}" --threads "${THREADS}")
-    "${MEASURE}" --tool "${tool}" --sample "${sample_id}" --stage run -- "${run_cmd[@]}" || log "WARNING: ${tool} failed for ${sample_id}"
+    case "${tool}" in
+      hymet)
+        run_cmd+=("--out" "${TOOL_DIR}")
+        ;;
+      hymet_reads)
+        run_cmd+=("--out" "${TOOL_DIR}" "--mode" "reads")
+        ;;
+    esac
+    "${MEASURE}" \
+      --tool "${tool}" \
+      --sample "${sample_id}" \
+      --stage run \
+      --out "${RUNTIME_TSV}" \
+      --local "${TOOL_RUNTIME}" \
+      -- "${run_cmd[@]}" || log "WARNING: ${tool} failed for ${sample_id}"
 
-    TOOL_DIR="${OUT_ROOT}/${sample_id}/${tool}"
     pred_profile="${TOOL_DIR}/profile.cami.tsv"
     pred_contigs=""
     pred_paf=""
     case "${tool}" in
-      hymet)
+      hymet|hymet_reads)
         pred_contigs="${TOOL_DIR}/classified_sequences.tsv"
         pred_paf="${TOOL_DIR}/resultados.paf"
         ;;
@@ -173,15 +225,48 @@ while IFS=$'\t' read -r sample_id contigs truth_contigs truth_profile rest; do
       --paf "${pred_paf}"
       --threads "${THREADS}"
     )
-    "${MEASURE}" --tool "${tool}" --sample "${sample_id}" --stage eval -- "${eval_cmd[@]}" || log "WARNING: evaluation failed for ${tool}/${sample_id}"
+    "${MEASURE}" \
+      --tool "${tool}" \
+      --sample "${sample_id}" \
+      --stage eval \
+      --out "${RUNTIME_TSV}" \
+      --local "${TOOL_RUNTIME}" \
+      -- "${eval_cmd[@]}" || log "WARNING: evaluation failed for ${tool}/${sample_id}"
   done
 done < "${MANIFEST}"
 
-if [[ -s "${OUT_ROOT}/runtime_memory.tsv" ]]; then
+if [[ -s "${RUNTIME_TSV}" ]]; then
   log "Aggregating metrics"
   python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --outdir "out"
   python3 "${SCRIPT_DIR}/plot/make_figures.py" --bench-root "${SCRIPT_DIR}" --outdir "out" || log "WARNING: plotting step failed"
-  SKIP_RECOMPUTE=1 "${SCRIPT_DIR}/publish_results.sh" || log "WARNING: failed to publish results snapshot"
+
+  if [[ ${PUBLISH_RESULTS} -eq 1 ]]; then
+    if [[ -n "${SUITE_PATH}" ]]; then
+      if [[ "${SUITE_PATH}" = /* ]]; then
+        run_dir_base="${SUITE_PATH}"
+      else
+        run_dir_base="${REPO_ROOT}/results/${SUITE_PATH}"
+      fi
+    else
+      run_dir_base="${REPO_ROOT}/results/${SUITE_SCENARIO}/${SUITE_NAME}"
+    fi
+    RUN_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+    export PUBLISH_RUN_DIR="${run_dir_base}/run_${RUN_STAMP}"
+    export PUBLISH_RUN_STAMP="${RUN_STAMP}"
+    export PUBLISH_SCENARIO="${SUITE_SCENARIO}"
+    export PUBLISH_SUITE="${SUITE_NAME}"
+    export PUBLISH_MANIFEST="${MANIFEST}"
+    export PUBLISH_THREADS="${THREADS}"
+    IFS=',' read -r -a TOOLS_FOR_META <<< "${TOOLS_REQUEST}"
+    if [[ ${#TOOLS_FOR_META[@]} -eq 1 && "${TOOLS_FOR_META[0]}" == "all" ]]; then
+      TOOLS_FOR_META=("${DEFAULT_TOOLS[@]}")
+    fi
+    export PUBLISH_TOOLS="$(IFS=','; echo "${TOOLS_FOR_META[*]}")"
+    export PUBLISH_MODES="contigs"
+    SKIP_RECOMPUTE=1 "${SCRIPT_DIR}/publish_results.sh" || log "WARNING: failed to publish results snapshot"
+  else
+    log "Skipping publish step (user disabled)"
+  fi
 fi
 
 log "Benchmark completed. Outputs under ${OUT_ROOT}"

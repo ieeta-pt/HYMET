@@ -17,9 +17,9 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 - **Deployment options** – Install via Bioconda, Docker/Singularity images, or a source checkout with the supplied environment file.
 
 <p align="center">
-  <img src="results/bench/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank" width="32%"> 
-  <img src="results/bench/fig_peak_memory_by_tool.png" alt="Peak memory by tool" width="32%">
-  <img src="results/case/fig_case_top_taxa_panels.png" alt="Case study top taxa" width="32%">
+  <img src="results/cami/contig_full/run_20251024T170927Z/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank" width="32%"> 
+  <img src="results/cami/contig_full/run_20251024T170927Z/figures/fig_peak_memory_by_tool.png" alt="Peak memory by tool" width="32%">
+  <img src="results/cases/canonical/run_20251018T220513Z/figures/fig_case_top_taxa_panels.png" alt="Case study top taxa" width="32%">
 </p>
 
 <!-- Detailed benchmark figures and discussion live in bench/results_summary.md -->
@@ -30,6 +30,7 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 |-----------|---------|
 | `bench/` | CAMI benchmark harness, database builders, evaluation, and plotting scripts. |
 | `case/` | Real-data case study runner plus reference ablation tooling. |
+| `workflows/` | High-level runners (e.g., CAMI suite) that stage artefacts under `results/<scenario>/<suite>/`. |
 | `bin/` | Python CLI entry points (preferred interface for new workflows). |
 | `scripts/` | Legacy Perl/Bash helpers retained for reproducibility (`main.pl`, `config.pl`, etc.). |
 | `testdataset/` | Utilities to assemble small synthetic evaluation sets. |
@@ -56,6 +57,22 @@ your/env/bin/hymet artifacts
 
 `bin/hymet` auto-detects `HYMET_ROOT`. Export it explicitly (`export HYMET_ROOT=/path/to/HYMET`) if you prefer running from arbitrary directories. The legacy Perl entry point remains available as `bin/hymet legacy -- …`.
 
+### Reproducing CAMI suites
+
+- Follow the detailed playbook in `docs/reproducibility.md` for the original manuscript run. The published artefacts now live under `results/cami/canonical/run_<timestamp>/` (raw outputs, tables, figures, metadata).
+- Use `workflows/run_cami_suite.sh` to stage new CAMI experiments. Every invocation creates `results/<scenario>/<suite>/run_<timestamp>/` and fills it with `raw/`, `tables/`, `figures/`, and `metadata.json`. For example:
+
+  ```bash
+  THREADS=8 CACHE_ROOT=data/downloaded_genomes/cache_bench \
+  workflows/run_cami_suite.sh \
+    --scenario cami \
+    --suite contig_full \
+    --contig-tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano \
+    --read-tools hymet_reads
+  ```
+
+  All artefacts for that run appear in `results/cami/contig_full/run_<timestamp>/`; nothing under `bench/out/` or `results/cami/canonical/` is touched.
+
 ## Installation Options
 
 | Method | Command | Notes |
@@ -79,10 +96,11 @@ your/env/bin/hymet artifacts
 
 ## Outputs at a Glance
 
-- CAMI runs write per-tool folders under `bench/out/<sample>/<tool>/` and aggregate TSVs/figures under `bench/out/` and `results/bench/`.
-- Case studies mirror that layout under `case/out/`, adding `top_taxa.tsv` summaries and optional MetaPhlAn comparisons.
-- Runtime and memory metrics append to `bench/out/runtime_memory.tsv` and `case/out/runtime_memory.tsv` with stage labels (`run`, `ablation_*`, etc.).
-- Figures can be regenerated via `python bench/plot/make_figures.py --bench-root bench --outdir out`.
+- Canonical CAMI artefacts: `results/cami/canonical/run_<timestamp>/` (raw benchmark outputs, summary tables, figures, metadata).
+- Reviewer suites: `results/cami/<suite>/run_<timestamp>/` (one folder per run). Raw per-tool outputs are grouped by mode; derived tables/figures live alongside metadata for immediate inspection.
+- Case studies and ablations follow the same pattern under `results/cases/…/run_<timestamp>/` and `results/ablation/…/run_<timestamp>/`.
+- The harness itself no longer writes to `bench/out/` or `case/out/`; set the environment variable `BENCH_OUT_ROOT=/path/to/results/<scenario>/<suite>/run_<timestamp>/raw/<mode>` when invoking `bin/hymet bench` directly. The workflow runner does this automatically.
+- Use `python bench/plot/make_figures.py --bench-root <raw_dir> --outdir <target>` to regenerate figures for any run.
 
 ## Documentation & Reporting
 
@@ -98,6 +116,8 @@ HYMET/
 ├── bench/               # CAMI harness (runners, builders, plots)
 ├── case/                # Real-data case study + ablation toolkit
 ├── docs/                # Additional guides
+├── results/             # Canonical artefacts (cami, cases, ablation, …)
+├── workflows/           # Repro runners that populate results/<scenario>/<suite>/
 ├── scripts/             # Legacy helpers (Perl/Bash)
 ├── testdataset/         # Synthetic dataset utilities
 └── data/, taxonomy_files/, …  # Downloaded references and taxonomy dumps

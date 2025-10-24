@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ CLI = ROOT / "bin" / "hymet"
 SIM_MUT = ROOT / "testdataset" / "simulate_mutations.py"
 PRELOAD_CACHE = ROOT / "case" / "tools" / "preload_cache_from_fasta.py"
 CONTIGS_TO_READS = ROOT / "bench" / "tools" / "contigs_to_reads.py"
+CAMI_SUITE = ROOT / "workflows" / "run_cami_suite.sh"
 
 
 def run_cli(*args):
@@ -25,6 +27,20 @@ def test_run_dry_run():
         str(outdir),
         "--threads",
         "1",
+        "--dry-run",
+    )
+
+
+def test_run_reads_dry_run(tmp_path):
+    reads = tmp_path / "reads.fastq"
+    reads.write_text("@r1\nACGT\n+\nIIII\n", encoding="utf-8")
+    outdir = tmp_path / "out"
+    run_cli(
+        "run",
+        "--reads",
+        str(reads),
+        "--out",
+        str(outdir),
         "--dry-run",
     )
 
@@ -118,6 +134,25 @@ def test_simulate_mutations_deterministic(tmp_path):
     ]
     subprocess.run(cmd, check=True, cwd=ROOT)
     assert output_fasta.read_text() == expected_fasta.read_text()
+
+
+def test_cami_suite_dry_run(tmp_path):
+    base = ROOT / "results" / "test_scenario" / "test_suite"
+    if base.exists():
+        shutil.rmtree(base)
+    cmd = [
+        str(CAMI_SUITE),
+        "--dry-run",
+        "--scenario",
+        "test_scenario",
+        "--suite",
+        "test_suite",
+        "--threads",
+        "1",
+    ]
+    subprocess.run(cmd, check=True, cwd=ROOT)
+    runs = sorted(base.glob("run_*/metadata.json"))
+    assert runs, "suite metadata not created"
 
 
 def test_preload_cache_from_fasta(tmp_path):

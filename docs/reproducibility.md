@@ -36,7 +36,7 @@ This playbook expands the minimal quick-start instructions in the README into a 
 | Repository commit | `git rev-parse HEAD` | Record in lab notebook |
 | HYMET environment file | `environment.lock.yml` | Keep copy with submission |
 | Sketch checksums | `data/sketch_checksums.tsv` | Compare with Zenodo |
-| Bench aggregate hash | `sha256sum bench/out/summary_per_tool_per_sample.tsv` | Match Zenodo |
+| Bench aggregate hash | `sha256sum bench/out/summary_per_tool_per_sample.tsv` | Match Zenodo (canonical release only) |
 | Case runtime log hash | `sha256sum case/out/runtime_memory.tsv` | Match Zenodo |
 
 Use this table as a cover sheet for the reproducibility package.
@@ -168,32 +168,57 @@ mkdir -p "$CACHE_ROOT"
 
 > Each HYMET run hashes selected references and stores them in `$CACHE_ROOT/<sha1>/`. Keep this directory for re-runs.
 
-### 8.2 Execute benchmark
+### 8.2 Execute benchmark (canonical release)
 
-The command below reproduces the tool panel reported in the manuscript. Adjust `--tools` to include or exclude specific competitors.
-
-```bash
-bin/hymet bench \
-  --manifest bench/cami_manifest.tsv \
-  --tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta \
-  --resume
-```
-
-Key outputs:
-- `bench/out/<sample>/<tool>/` – raw PAF files, CAMI profiles, logs, metadata.
-- `bench/out/summary_per_tool_per_sample.tsv` – per-rank precision/recall/F1.
-- `bench/out/runtime_memory.tsv` – `/usr/bin/time -v` metrics.
-- `bench/out/fig_*.png` – aggregated plots (copied to `results/bench/`).
-
-### 8.3 Partial reruns
-
-To refresh a single tool on two samples:
+Use the workflow runner so that every artefact is captured directly under `results/cami/canonical/run_<timestamp>/`:
 
 ```bash
-THREADS=8 bin/hymet bench --tools metaphlan4 --max-samples 2 --resume
+THREADS=16 CACHE_ROOT=$(pwd)/bench/data/downloaded_genomes/cache_bench \
+workflows/run_cami_suite.sh \
+  --scenario cami \
+  --suite canonical \
+  --modes contigs \
+  --contig-tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta
 ```
 
-The harness skips tools/samples with existing success markers unless `FORCE_DOWNLOAD=1` or `--no-build` is specified.
+The runner sets `BENCH_OUT_ROOT` per mode, snapshots `bench/out/<sample>/<tool>/` into `raw/`, and copies the derived TSVs/figures into `tables/` and `figures/`. No manual `cp` steps are required.
+
+If you invoke the low-level harness directly (`bin/hymet bench` or `bench/run_all_cami.sh`), publish the results afterwards so they follow the same hierarchy:
+
+```bash
+bench/run_all_cami.sh --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta
+bench/publish_results.sh --scenario cami --suite canonical
+```
+
+`publish_results.sh` snapshots `bench/out/` into `results/cami/canonical/run_<timestamp>/raw`, copies aggregated tables/figures, and records `metadata.json`.
+
+### 8.3 Partial reruns / reviewer suites
+
+Use the workflow runner to archive targeted suites without touching the canonical release:
+
+```bash
+THREADS=8 CACHE_ROOT=$(pwd)/bench/data/downloaded_genomes/cache_bench \
+workflows/run_cami_suite.sh \
+  --scenario cami \
+  --suite contig_full \
+  --contig-tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano \
+  --read-tools hymet_reads
+```
+
+Each invocation creates `results/<scenario>/<suite>/run_<timestamp>/` with its own `raw/`, `tables/`, `figures/`, and `metadata.json`. Multiple runs can coexist simply by virtue of their timestamps. Folder anatomy:
+- `raw/<mode>/<sample>/<tool>/` – untouched snapshots of `bench/out/<sample>/<tool>/`.
+- `tables/` – per-mode TSVs (summary, leaderboard, runtime, contig accuracy, manifest snapshot). When multiple modes are used, subdirectories (`tables/contigs/`, `tables/reads/`, …) keep them separated.
+- `figures/` – regenerated `fig_*.png` artefacts, likewise grouped per mode when applicable.
+- `metadata.json` – manifest path, commit hash, tool roster, command log, thread counts, and cache hints.
+- Use `--dry-run` to inspect commands without executing them. Add `--read-tools hymet_reads` if the reviewer comparison requires the pseudo-read mode.
+
+After the workflow completes, compute checksums directly in the suite directory:
+
+```bash
+SUITE=results/cami/contig_full/run_<timestamp>
+sha256sum "$SUITE"/tables/summary_per_tool_per_sample.tsv > "$SUITE"/checksums.json
+sha256sum "$SUITE"/tables/runtime_memory.tsv >> "$SUITE"/checksums.json
+```
 
 ---
 
@@ -207,11 +232,11 @@ export THREADS=8
 bin/hymet case --manifest case/manifest.tsv --sanity-metaphlan
 ```
 
-Outputs:
-- `case/out/<sample>/hymet/` – CAMI profile, classified contigs, metadata.
-- `case/out/<sample>/metaphlan/` – optional sanity comparison.
-- `case/out/top_taxa_summary.tsv` – combined view.
-- `case/out/runtime_memory.tsv` – resource usage.
+Outputs now land under `results/cases/canonical/run_<timestamp>/`:
+- `raw/<sample>/hymet/` – CAMI profile, classified contigs, metadata.
+- `raw/<sample>/metaphlan/` – optional sanity comparison.
+- `tables/runtime_memory.tsv`, `tables/top_taxa_summary.tsv` – combined view.
+- `figures/` – case-study visualisations copied from `raw/figures/`.
 
 ### 9.2 Zymo curated-panel ablation
 
@@ -271,15 +296,27 @@ If the scripts complain about missing dependencies (e.g., matplotlib), ensure th
 The Zenodo record includes SHA256 sums for the canonical outputs. Compare your reruns:
 
 ```bash
-sha256sum bench/out/summary_per_tool_per_sample.tsv
-sha256sum bench/out/leaderboard_by_rank.tsv
-sha256sum bench/out/runtime_memory.tsv
-sha256sum case/out/runtime_memory.tsv
-sha256sum results/bench/fig_f1_by_rank_lines.png
-sha256sum results/case/fig_case_top_taxa_panels.png
+SUITE=results/cami/canonical/run_<timestamp>
+sha256sum "$SUITE"/tables/summary_per_tool_per_sample.tsv
+sha256sum "$SUITE"/tables/leaderboard_by_rank.tsv
+sha256sum "$SUITE"/tables/runtime_memory.tsv
+sha256sum "$SUITE"/figures/fig_f1_by_rank_lines.png
+
+CASE=results/cases/canonical/run_<timestamp>
+sha256sum "$CASE"/tables/runtime_memory.tsv
+sha256sum "$CASE"/figures/fig_case_top_taxa_panels.png
 ```
 
 Record the hashes and confirm they match the deposited versions (see `zenodo_checksums.txt` in the archive).
+
+For reviewer-specific reruns, point the checksum helper at the corresponding run directory:
+
+```bash
+SUITE=results/<scenario>/<suite>/run_<timestamp>
+sha256sum "$SUITE"/tables/summary_per_tool_per_sample.tsv
+sha256sum "$SUITE"/tables/runtime_memory.tsv
+sha256sum "$SUITE"/figures/fig_f1_by_rank_lines.png
+```
 
 ### 11.2 Inspect metadata
 
@@ -303,10 +340,15 @@ All tests should pass; a failure typically indicates missing dependencies or pat
 
 ## 12. Packaging for submission
 
-1. Create archives of key outputs:
+1. Create archives of key outputs. For the canonical benchmark:
    ```bash
-   tar -cf bench_outputs.tar.gz bench/out results/bench
-   tar -cf case_outputs.tar.gz case/out case/ablation results/case
+   tar -cf cami_canonical_outputs.tar.gz results/cami/canonical/run_<timestamp>
+   tar -cf case_outputs.tar.gz results/cases/canonical/run_<timestamp> case/ablation
+   ```
+   For reviewer-specific suites:
+   ```bash
+   SUITE=results/<scenario>/<suite>/run_<timestamp>
+   tar -cf cami_suite_outputs.tar.gz "$SUITE"
    ```
 2. Export the environment:
    ```bash
@@ -314,8 +356,8 @@ All tests should pass; a failure typically indicates missing dependencies or pat
    ```
 3. Assemble a manifest:
    - `manifest.txt` summarising tarball contents
-   - Hash list (`sha256sum bench_outputs.tar.gz case_outputs.tar.gz > hashes.txt`)
-4. Store logs (`bench/run_all_cami.log`, any terminal transcripts) alongside the tarballs.
+   - Hash list (`sha256sum *.tar.gz > hashes.txt`)
+4. Store logs (`bench/run_all_cami.log`, `results/<scenario>/<suite>/run_<timestamp>/metadata.json`, any terminal transcripts) alongside the tarballs.
 
 Upload the bundles to Zenodo (or GigaDB) and reference them in the manuscript’s Data Availability statement.
 

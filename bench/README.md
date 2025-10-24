@@ -2,6 +2,16 @@
 
 This directory documents the automation used to benchmark HYMET and selected baseline profilers on CAMI-style datasets. It includes database preparation, tool execution, evaluation against CAMI truth, aggregation, and figure generation. All scripts target a standard Linux workstation or container with sufficient CPU, RAM, and disk.
 
+> **Important.** Published CAMI artefacts now live under `results/cami/canonical/run_<timestamp>/`. The `bench/out/` directory in the repository is intentionally empty (tracked by `.gitkeep`) and is meant only as a temporary workspace. When invoking the harness directly, set `BENCH_OUT_ROOT` so that outputs flow straight into your suite folder:
+>
+> ```bash
+> export BENCH_OUT_ROOT="$(pwd)/results/cami/my_suite/run_$(date -u +%Y%m%dT%H%M%SZ)/raw/contigs"
+> THREADS=8 CACHE_ROOT=$(pwd)/bench/data/downloaded_genomes/cache_bench \
+>   bin/hymet bench --tools hymet,kraken2
+> ```
+>
+> The workflow runner (`workflows/run_cami_suite.sh`) automates this process and records each run under `results/<scenario>/<suite>/run_<timestamp>/`.
+
 ## 1. Directory Map
 
 ```
@@ -19,7 +29,7 @@ bench/
 ├── fetch_cami.sh             # Optional downloader driven by manifest URLs
 ├── lib/                      # Shared helpers (common.sh, measure.sh, run_eval.sh, ...)
 ├── nextflow/                 # Local Nextflow assets and cached work directories
-├── out/                      # Per-run outputs (one folder per sample/tool)
+├── out/                      # Empty staging area (outputs now go to results/<scenario>/<suite>/…)
 ├── plot/                     # Figure generator using matplotlib
 ├── refsets/                  # Shared reference FASTA subsets
 ├── results_summary.md        # Rolling benchmark status and tuning notes
@@ -34,7 +44,7 @@ Key support scripts:
 | Path | Purpose |
 |------|---------|
 | `lib/common.sh` | Logging, path resolution, root discovery; sourced by every runner. |
-| `lib/measure.sh` | Wraps commands with `/usr/bin/time -v`, appends to `out/runtime_memory.tsv`. |
+| `lib/measure.sh` | Wraps commands with `/usr/bin/time -v`, writes stage stats to `out/runtime_memory.tsv` **and** `out/<sample>/<tool>/runtime_memory.tsv`. |
 | `lib/run_eval.sh` | Invokes `HYMET/tools/eval_cami.py` and removes empty contig reports. |
 | `convert/*.py` | Convert raw outputs into CAMI-compliant profiles. |
 | `aggregate_metrics.py` | Builds `summary_per_tool_per_sample.tsv`, `leaderboard_by_rank.tsv`, `contig_accuracy_per_tool.tsv`. |
@@ -426,21 +436,27 @@ bin/hymet bench \
   --tools hymet,kraken2,centrifuge
 ```
 
-Run `bin/hymet bench --help` for advanced options (`--samples`, `--resume`, etc.).
+Run `bin/hymet bench --help` for advanced options (`--samples`, `--resume`, etc.). For multi-mode automation that stays outside the bench harness, see `workflows/run_cami_suite.sh`.
 
 ### 6.2 One-button driver
 
 ```bash
+# Contig classifiers only (filters out marker-only profilers)
+THREADS=16 ./run_all_cami.sh --tools contigs
+
+# Full historical panel (default when --tools is omitted or set to all)
 THREADS=16 METAPHLAN_THREADS=4 METAPHLAN_OPTS="--split_reads" \
-  ./run_all_cami.sh --tools hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4,camitax
+  ./run_all_cami.sh --tools all
 ```
 
 Useful options:
-- `--tools` – comma-separated list or `all`.
+- `--tools` – comma-separated list, `contigs` (contig classifiers), `reads` (read-mode HYMET), or `all` (full historical panel).
 - `--no-build` – reuse existing databases.
 - `--threads N` – override default thread count.
 - `--max-samples N` – process first N manifest rows.
 - `--resume` – keep existing `out/runtime_memory.tsv`.
+
+> `contigs` expands to `hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano`. `reads` maps to `hymet_reads`. `all` restores the full panel (`hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4,camitax,phabox,phyloflash,viwrap,squeezemeta,megapath_nano,snakemags`).
 
 Important environment variables:
 
@@ -457,7 +473,7 @@ Important environment variables:
 | `METAPHLAN_THREADS` | `THREADS` | Bowtie2 threads. |
 | `METAPHLAN_OPTS` | (empty) | Additional MetaPhlAn options. |
 
-### 6.3 Individual tool runs
+### 6.4 Individual tool runs
 
 Call the runner directly:
 
@@ -465,10 +481,10 @@ Call the runner directly:
 ./run_ganon2.sh --sample cami_i_lc --contigs data/cami_i_lc/contigs.fna --threads 16
 ```
 
-Then regenerate aggregates and sync the `results/bench/` snapshots:
+Then regenerate aggregates and snapshot them under `results/<scenario>/<suite>/run_<timestamp>/` (defaults to `results/cami/canonical/`):
 
 ```bash
-./publish_results.sh
+./publish_results.sh --scenario cami --suite dev_contigs
 ```
 
 ### 6.4 Evaluation-only reruns
@@ -494,6 +510,7 @@ Useful after manual tweaks to converter scripts:
 | `profile.cami.tsv` | CAMI profile predicted by the tool. |
 | `classified_sequences.tsv` | Per-contig assignments (when available). |
 | `metadata.json` | Provenance info (sample, tool, key paths). |
+| `runtime_memory.tsv` | Wall/user/sys time, RSS, I/O, timestamps per `run`/`eval` stage for that tool. |
 | `resultados.paf` | HYMET PAF alignment (if produced). |
 | `eval/profile_summary.tsv` | Rank-wise abundance metrics. |
 | `eval/contigs_exact.tsv` + `eval/contigs_per_rank.tsv` | Contig metrics (omitted if no usable pairs). |
@@ -515,7 +532,7 @@ Useful after manual tweaks to converter scripts:
 - `fig_peak_memory_by_tool.png`
 - `fig_contig_accuracy_heatmap.png`
 
-`run_all_cami.sh` now invokes `publish_results.sh`, so aggregate tables and figures are refreshed under both `bench/out/` and `results/bench/`.
+`run_all_cami.sh` now invokes `publish_results.sh`, so aggregate tables and figures are refreshed under `bench/out/` **and** mirrored into `results/<scenario>/<suite>/run_<timestamp>/` (defaults to `results/cami/canonical/`).
 
 ## 8. Resource Tips & Troubleshooting
 
@@ -523,7 +540,7 @@ Useful after manual tweaks to converter scripts:
 - **ganon2 coverage**: Relaxed defaults (`GANON_REL_CUTOFF=0`, `GANON_REL_FILTER=1`) keep long-contig matches. Tighten thresholds if precision is a concern.
 - **MetaPhlAn memory**: Use `METAPHLAN_THREADS=4` and `--split_reads` to stay under 20 GB.
 - **No contig output**: MetaPhlAn4 and sourmash gather do not emit contig assignments. The evaluator now removes empty reports, and aggregates omit those rows.
-- **Logs**: `runtime_memory.tsv` captures command lines and resources. `_debug_info.txt` in each `eval/` folder lists the evaluation inputs.
+- **Logs**: Each `out/<sample>/<tool>/runtime_memory.tsv` captures the exact command, timestamps, wall/user/sys time, RSS, and I/O for both `run` and `eval` stages; `out/runtime_memory.tsv` is the concatenated view used for tables/figures. `_debug_info.txt` in each `eval/` folder lists the evaluation inputs.
 
 ## 9. Suggested Workflow
 
