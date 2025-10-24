@@ -37,7 +37,7 @@ This playbook expands the minimal quick-start instructions in the README into a 
 | HYMET environment file | `environment.lock.yml` | Keep copy with submission |
 | Sketch checksums | `data/sketch_checksums.tsv` | Compare with Zenodo |
 | Bench aggregate hash | `sha256sum bench/out/summary_per_tool_per_sample.tsv` | Match Zenodo (canonical release only) |
-| Case runtime log hash | `sha256sum case/out/runtime_memory.tsv` | Match Zenodo |
+| Case runtime log hash | `sha256sum results/cases/<suite>/run_<timestamp>/tables/runtime_memory.tsv` | Match Zenodo |
 
 Use this table as a cover sheet for the reproducibility package.
 
@@ -263,9 +263,9 @@ Steps:
    ```
 
 Outputs:
-- `case/ablation/<sample>/level_*/hymet/` – per-level predictions + evaluation.
-- `case/ablation_summary.tsv`, `case/ablation_eval_summary.tsv`.
-- `case/ablation/figures/*.png` – fallback curves and F1 summaries.
+- `results/ablation/canonical/run_<timestamp>/raw/<sample>/level_*/hymet/` – per-level predictions + evaluation.
+- `results/ablation/canonical/run_<timestamp>/raw/ablation_summary.tsv` and `raw/ablation_eval_summary.tsv` (copied to `tables/` alongside runtime stats).
+- `results/ablation/canonical/run_<timestamp>/figures/*.png` – fallback curves and F1 summaries.
 
 ---
 
@@ -278,9 +278,15 @@ You can rebuild all plots purely from the TSV aggregates.
 python bench/aggregate_metrics.py --bench-root bench --outdir out
 python bench/plot/make_figures.py --bench-root bench --outdir out
 
-# Case-study figures
-python case/plot_case.py
-python case/plot_ablation.py --summary case/ablation_summary.tsv --eval case/ablation_eval_summary.tsv --outdir case/ablation/figures
+# Case-study figures (published run)
+CASE_RUN=results/cases/canonical/run_<timestamp>
+python case/plot_case.py --case-root "$CASE_RUN/raw" --figures-dir "$CASE_RUN/figures"
+
+# Ablation figures
+ABLATION_RUN=results/ablation/canonical/run_<timestamp>
+python case/plot_ablation.py --summary "$ABLATION_RUN/raw/ablation_summary.tsv" \
+  --eval "$ABLATION_RUN/raw/ablation_eval_summary.tsv" \
+  --outdir "$ABLATION_RUN/figures"
 ```
 
 If the scripts complain about missing dependencies (e.g., matplotlib), ensure the environment is activated or install the required packages. When only a subset of artefacts is available, run the relevant commands selectively.

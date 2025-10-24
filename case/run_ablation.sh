@@ -6,17 +6,27 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
+DEFAULT_ABLATION_ROOT="${CASE_ROOT}/ablation"
 MANIFEST="${CASE_ROOT}/manifest.tsv"
 SAMPLE_ID=""
 LEVELS="0,0.25,0.5,0.75,1.0"
 TAXA=""
 SEQMAP="${BENCH_ROOT}/db/ganon2/seqid2taxid.map"
 BASE_FASTA="${HYMET_ROOT}/data/downloaded_genomes/combined_genomes.fasta"
-OUT_ROOT="${CASE_ROOT}/ablation"
+OUT_ROOT="${DEFAULT_ABLATION_ROOT}"
 THREADS="${THREADS:-8}"
 SEED=1337
 MEASURE="${CASE_ROOT}/lib/measure.sh"
-RUNTIME_TSV="${CASE_ROOT}/out/runtime_memory.tsv"
+RUNTIME_TSV=""
+SCENARIO="${CASE_SCENARIO:-ablation}"
+SUITE_NAME="${CASE_SUITE:-canonical}"
+SUITE_PATH=""
+PUBLISH_RESULTS=1
+CUSTOM_OUT=0
+RUN_STAMP=""
+RUN_DIR=""
+TABLES_DIR=""
+FIGURES_DIR=""
 
 usage(){
   cat <<'USAGE'
@@ -24,6 +34,8 @@ Usage: run_ablation.sh --taxa TAXID1,TAXID2 [...] [--sample ID]
                        [--levels FRACTIONS] [--manifest TSV]
                        [--seqmap PATH] [--fasta PATH]
                        [--out DIR] [--threads N] [--seed N]
+                       [--scenario NAME] [--suite NAME]
+                       [--suite-path REL/PATH] [--no-publish]
 USAGE
   exit 1
 }
@@ -36,9 +48,13 @@ while [[ $# -gt 0 ]]; do
     --manifest) MANIFEST="$2"; shift 2;;
     --seqmap) SEQMAP="$2"; shift 2;;
     --fasta) BASE_FASTA="$2"; shift 2;;
-    --out) OUT_ROOT="$2"; shift 2;;
+    --out) OUT_ROOT="$2"; CUSTOM_OUT=1; PUBLISH_RESULTS=0; shift 2;;
     --threads) THREADS="$2"; shift 2;;
     --seed) SEED="$2"; shift 2;;
+    --scenario) SCENARIO="$2"; shift 2;;
+    --suite) SUITE_NAME="$2"; shift 2;;
+    --suite-path) SUITE_PATH="$2"; shift 2;;
+    --no-publish) PUBLISH_RESULTS=0; shift;;
     -h|--help) usage;;
     *) usage;;
   esac
@@ -49,8 +65,31 @@ done
 MANIFEST="$(resolve_path "${MANIFEST}")"
 SEQMAP="$(resolve_path "${SEQMAP}")"
 BASE_FASTA="$(resolve_path "${BASE_FASTA}")"
-OUT_ROOT="$(resolve_path "${OUT_ROOT}")"
-ensure_dir "${OUT_ROOT}"
+
+if [[ ${CUSTOM_OUT} -eq 1 || "${PUBLISH_RESULTS}" -eq 0 ]]; then
+  OUT_ROOT="$(resolve_path "${OUT_ROOT}")"
+  ensure_dir "${OUT_ROOT}"
+else
+  RUN_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+  if [[ -n "${SUITE_PATH}" ]]; then
+    if [[ "${SUITE_PATH}" = /* ]]; then
+      run_base="${SUITE_PATH}"
+    else
+      run_base="${HYMET_ROOT}/results/${SUITE_PATH}"
+    fi
+  else
+    run_base="${HYMET_ROOT}/results/${SCENARIO}/${SUITE_NAME}"
+  fi
+  RUN_DIR="${run_base}/run_${RUN_STAMP}"
+  OUT_ROOT="$(resolve_path "${RUN_DIR}/raw")"
+  TABLES_DIR="$(resolve_path "${RUN_DIR}/tables")"
+  FIGURES_DIR="$(resolve_path "${RUN_DIR}/figures")"
+  ensure_dir "${OUT_ROOT}"
+  ensure_dir "${TABLES_DIR}"
+  ensure_dir "${FIGURES_DIR}"
+fi
+
+RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
 
 [[ -s "${SEQMAP}" ]] || die "Sequence → taxid map missing: ${SEQMAP}"
 [[ -s "${BASE_FASTA}" ]] || die "Reference FASTA missing: ${BASE_FASTA}"
@@ -261,9 +300,52 @@ PY
 done
 
 restore_fastas
-log "[ablation] Results written under ${OUT_ROOT}"
 
+PLOT_DIR="${FIGURES_DIR:-${OUT_ROOT}/figures}"
 python3 "${CASE_ROOT}/plot_ablation.py" \
   --summary "${SUMMARY_TSV}" \
   --eval "${EVAL_SUMMARY}" \
-  --outdir "${OUT_ROOT}/figures"
+  --outdir "${PLOT_DIR}"
+
+if [[ "${PUBLISH_RESULTS}" -eq 1 && -n "${RUN_DIR}" ]]; then
+  copy_if_exists(){
+    local src="$1"
+    local dst="$2"
+    if [[ -f "${src}" ]]; then
+      install -m 0644 -D "${src}" "${dst}"
+    fi
+  }
+  copy_if_exists "${SUMMARY_TSV}" "${TABLES_DIR}/ablation_summary.tsv"
+  copy_if_exists "${EVAL_SUMMARY}" "${TABLES_DIR}/ablation_eval_summary.tsv"
+  copy_if_exists "${RUNTIME_TSV}" "${TABLES_DIR}/runtime_memory.tsv"
+
+  export RUN_DIR SCENARIO SUITE_NAME RUN_STAMP MANIFEST THREADS SAMPLE_ID LEVELS TAXA SEQMAP BASE_FASTA HYMET_ROOT
+  python3 - <<'PY'
+import json, os, pathlib, subprocess
+run_dir = pathlib.Path(os.environ["RUN_DIR"])
+meta = {
+    "scenario": os.environ["SCENARIO"],
+    "suite": os.environ["SUITE_NAME"],
+    "run_id": run_dir.name,
+    "timestamp": os.environ.get("RUN_STAMP") or "manual",
+    "manifest": str(pathlib.Path(os.environ["MANIFEST"]).resolve()),
+    "sample": os.environ.get("SAMPLE_ID"),
+    "taxa": os.environ.get("TAXA"),
+    "levels": os.environ.get("LEVELS"),
+    "seqmap": str(pathlib.Path(os.environ["SEQMAP"]).resolve()),
+    "base_fasta": str(pathlib.Path(os.environ["BASE_FASTA"]).resolve()),
+    "threads": int(os.environ.get("THREADS") or 0),
+    "source": "case/run_ablation.sh",
+    "git_commit": subprocess.run(
+        ["git", "-C", os.environ["HYMET_ROOT"], "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip() or "unknown",
+}
+(run_dir / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
+PY
+  log "[ablation] Published ablation artefacts to ${RUN_DIR}"
+else
+  log "[ablation] Results written under ${OUT_ROOT}"
+fi

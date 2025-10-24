@@ -17,9 +17,9 @@ import seaborn as sns
 
 
 CASES_ROOT = Path(__file__).resolve().parent
-OUT_ROOT = CASES_ROOT / "out"
-FIG_ROOT = OUT_ROOT / "figures"
-MAX_TAXA = 12  # show top-N taxa per sample
+DEFAULT_OUT_ROOT = CASES_ROOT / "out"
+DEFAULT_FIG_ROOT = DEFAULT_OUT_ROOT / "figures"
+DEFAULT_MAX_TAXA = 12  # show top-N taxa per sample
 
 
 @dataclass
@@ -69,14 +69,16 @@ def load_top_taxa(sample_dir: Path) -> List[Dict[str, str]]:
                 "pct": pct,
             })
     taxa.sort(key=lambda item: item["pct"], reverse=True)
-    return taxa[:MAX_TAXA]
+    return taxa
 
 
-def collect_case_results() -> List[SampleResult]:
+def collect_case_results(out_root: Path, max_taxa: int) -> List[SampleResult]:
     results: List[SampleResult] = []
-    runtime_table = OUT_ROOT / "runtime_memory.tsv"
-    for sample_dir in sorted(OUT_ROOT.iterdir()):
-        if not sample_dir.is_dir() or sample_dir.name == "figures":
+    runtime_table = out_root / "runtime_memory.tsv"
+    if not runtime_table.exists():
+        return results
+    for sample_dir in sorted(out_root.iterdir()):
+        if not sample_dir.is_dir():
             continue
         sample = SampleResult(name=sample_dir.name)
         runtime = load_runtime(sample_dir.name, runtime_table)
@@ -84,13 +86,10 @@ def collect_case_results() -> List[SampleResult]:
             sample.runtime_wall = runtime["wall"]
             sample.runtime_cpu = runtime["cpu"]
             sample.runtime_rss = runtime["rss"]
-        sample.top_taxa = load_top_taxa(sample_dir)
+        taxa = load_top_taxa(sample_dir)
+        sample.top_taxa = taxa[:max_taxa]
         results.append(sample)
     return results
-
-
-def ensure_output_dir() -> None:
-    FIG_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 def format_duration(seconds: float) -> str:
@@ -103,7 +102,7 @@ def format_duration(seconds: float) -> str:
     return f"{seconds:.0f} s"
 
 
-def plot_runtime(results: List[SampleResult]) -> None:
+def plot_runtime(results: List[SampleResult], fig_root: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
     palette = sns.color_palette("deep", len(results))
     names = [r.display_name for r in results]
@@ -135,7 +134,8 @@ def plot_runtime(results: List[SampleResult]) -> None:
 
     sns.despine(fig)
     fig.suptitle("HYMET Case Study – Performance Summary", fontsize=15, weight="semibold")
-    fig.savefig(FIG_ROOT / "fig_case_runtime.png", dpi=300)
+    fig_root.mkdir(parents=True, exist_ok=True)
+    fig.savefig(fig_root / "fig_case_runtime.png", dpi=300)
     plt.close(fig)
 
 
@@ -147,7 +147,7 @@ def taxon_label(entry: Dict[str, str]) -> str:
     return textwrap.shorten(label, width=32, placeholder="…")
 
 
-def plot_top_taxa_panels(results: List[SampleResult]) -> None:
+def plot_top_taxa_panels(results: List[SampleResult], fig_root: Path) -> None:
     if not results:
         return
     n = len(results)
@@ -178,11 +178,12 @@ def plot_top_taxa_panels(results: List[SampleResult]) -> None:
                         fontsize=9, color="#1c2333")
         sns.despine(ax=ax, left=True)
 
-    fig.savefig(FIG_ROOT / "fig_case_top_taxa_panels.png", dpi=300)
+    fig_root.mkdir(parents=True, exist_ok=True)
+    fig.savefig(fig_root / "fig_case_top_taxa_panels.png", dpi=300)
     plt.close(fig)
 
 
-def plot_taxa_heatmap(results: List[SampleResult]) -> None:
+def plot_taxa_heatmap(results: List[SampleResult], fig_root: Path) -> None:
     taxa_names = sorted({taxon_label(t) for r in results for t in r.top_taxa})
     if not taxa_names:
         return
@@ -205,11 +206,12 @@ def plot_taxa_heatmap(results: List[SampleResult]) -> None:
     ax.set_xticklabels([r.display_name for r in results], rotation=30, ha="right")
     ax.set_yticklabels(taxa_names, rotation=0)
     ax.set_title("Top taxa overlap across case-study samples", loc="left", weight="semibold")
-    fig.savefig(FIG_ROOT / "fig_case_top_taxa_heatmap.png", dpi=300)
+    fig_root.mkdir(parents=True, exist_ok=True)
+    fig.savefig(fig_root / "fig_case_top_taxa_heatmap.png", dpi=300)
     plt.close(fig)
 
 
-def save_metadata(results: List[SampleResult]) -> None:
+def save_metadata(results: List[SampleResult], fig_root: Path) -> None:
     payload = {
         "samples": [
             {
@@ -224,25 +226,33 @@ def save_metadata(results: List[SampleResult]) -> None:
             for r in results
         ]
     }
-    (FIG_ROOT / "case_figures_metadata.json").write_text(json.dumps(payload, indent=2))
+    fig_root.mkdir(parents=True, exist_ok=True)
+    (fig_root / "case_figures_metadata.json").write_text(json.dumps(payload, indent=2))
 
 
-def generate_figures(_: argparse.Namespace) -> None:
+def generate_figures(args: argparse.Namespace) -> None:
     sns.set_theme(context="talk", style="whitegrid", font="DejaVu Sans")
-    ensure_output_dir()
-    results = collect_case_results()
+    out_root = Path(args.case_root).resolve()
+    fig_root = Path(args.figures_dir).resolve()
+    results = collect_case_results(out_root, args.max_taxa)
     if not results:
-        raise SystemExit("No case-study outputs found under case/out/.")
-    plot_runtime(results)
-    plot_top_taxa_panels(results)
-    plot_taxa_heatmap(results)
-    save_metadata(results)
-    print(f"Generated figures in {FIG_ROOT}")
+        raise SystemExit(f"No case-study outputs found under {out_root}.")
+    plot_runtime(results, fig_root)
+    plot_top_taxa_panels(results, fig_root)
+    plot_taxa_heatmap(results, fig_root)
+    save_metadata(results, fig_root)
+    print(f"Generated figures in {fig_root}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    return parser.parse_args()
+    parser.add_argument("--case-root", default=str(DEFAULT_OUT_ROOT), help="Directory containing case outputs (default: case/out)")
+    parser.add_argument("--figures-dir", help="Directory to store generated figures (default: <case-root>/figures)")
+    parser.add_argument("--max-taxa", type=int, default=DEFAULT_MAX_TAXA, help="Top-N taxa to display per sample (default: 12)")
+    args = parser.parse_args()
+    if args.figures_dir is None:
+        args.figures_dir = str(Path(args.case_root).resolve() / "figures")
+    return args
 
 
 def main() -> None:
