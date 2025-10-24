@@ -92,8 +92,17 @@ if [[ ! -s "${GFF_PATH}" ]]; then
     --taxdb "${TAXONKIT_DB:-}" \
     --classified-out "${CLASSIFIED_DST}" || true
   cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "phyloflash", "profile": "${PROFILE_DST}", "contigs": "${CONTIGS_ABS}", "db_dir": "${PHYLOFLASH_DB_DIR}", "threads": "${THREADS}", "note": "No rRNA features detected"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "phyloflash",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CONTIGS_ABS}",
+  "db_dir": "${PHYLOFLASH_DB_DIR}",
+  "threads": "${THREADS}",
+  "note": "No rRNA features detected"
+}
 EOF
+  normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"
   exit 0
 fi
 
@@ -188,5 +197,15 @@ python3 "${SCRIPT_DIR}/convert/phyloflash_to_cami.py" \
   --classified-out "${CLASSIFIED_DST}"
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "phyloflash", "profile": "${PROFILE_DST}", "contigs": "${CONTIGS_ABS}", "reads": "${READS_FASTQ}", "db_dir": "${PHYLOFLASH_DB_DIR}", "threads": "${THREADS}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "phyloflash",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CONTIGS_ABS}",
+  "reads": "${READS_FASTQ}",
+  "db_dir": "${PHYLOFLASH_DB_DIR}",
+  "threads": "${THREADS}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

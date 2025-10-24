@@ -49,6 +49,9 @@ your/env/bin/hymet case   --manifest case/manifest_zymo.tsv   --threads 8
 
 # Reference ablation experiment
 your/env/bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.5,1.0   --threads 4
+
+# Refresh supplementary tables and figures
+your/env/bin/hymet artifacts
 ```
 
 `bin/hymet` auto-detects `HYMET_ROOT`. Export it explicitly (`export HYMET_ROOT=/path/to/HYMET`) if you prefer running from arbitrary directories. The legacy Perl entry point remains available as `bin/hymet legacy -- …`.
@@ -85,6 +88,7 @@ your/env/bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.
 
 - CAMI harness details: `bench/README.md`, latest metrics: `bench/results_summary.md`.
 - Case-study workflows: `case/README.md`, results recap: `case/results_summary.md`.
+- Reproducibility playbook: `docs/reproducibility.md`.
 
 ## Repository Layout
 

@@ -151,6 +151,8 @@ PY
 }
 EOF
 
+  normalize_metadata_json "${sample_out}/metadata.json" "${sample_out}"
+
   if [[ "${SANITY_METAPHLAN}" -eq 1 ]]; then
     metaphlan_out="${sample_out}/metaphlan"
     ensure_dir "${metaphlan_out}"

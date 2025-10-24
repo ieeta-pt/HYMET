@@ -203,8 +203,18 @@ if [[ ! -f "${CLASSIFIED_DST}" ]]; then
 fi
 
 cat > "${METADATA_PATH}" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "tama", "profile": "${PROFILE_DST}", "classified_sequences": "${CLASSIFIED_REF}", "param_file": "${PARAM_DST}", "tama_root": "${TAMA_ROOT}", "threads": "${THREADS}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "tama",
+  "profile": "${PROFILE_DST}",
+  "classified_sequences": "${CLASSIFIED_REF}",
+  "param_file": "${PARAM_DST}",
+  "tama_root": "${TAMA_ROOT}",
+  "threads": "${THREADS}"
+}
 EOF
+
+normalize_metadata_json "${METADATA_PATH}" "${OUT_DIR}"
 
 if [[ "${KEEP_WORK}" -ne 1 ]]; then
   rm -rf "${WORK_DIR}" || true

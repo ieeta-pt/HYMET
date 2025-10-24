@@ -233,5 +233,15 @@ python3 "${SCRIPT_DIR}/convert/squeezemeta_to_cami.py" \
   --classified-out "${CLASSIFIED_DST}"
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "squeezemeta", "profile": "${PROFILE_DST}", "contigs": "${CONTIGS_ABS}", "db_dir": "${SQUEEZEMETA_DB_DIR}", "threads": "${THREADS}", "project_dir": "${PROJECT_DIR}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "squeezemeta",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CONTIGS_ABS}",
+  "db_dir": "${SQUEEZEMETA_DB_DIR}",
+  "threads": "${THREADS}",
+  "project_dir": "${PROJECT_DIR}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

@@ -114,3 +114,5 @@ cat > "${OUT_DIR}/metadata.json" <<EOF
   "run_dir": "${RUN_DIR}"
 }
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

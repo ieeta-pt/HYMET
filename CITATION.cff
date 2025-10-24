@@ -14,7 +14,7 @@ authors:
     given-names: João Rafael
     affiliation: IEETA/DETI, LASI, University of Aveiro
 repository-code: https://github.com/ieeta-pt/HYMET
-license: Apache-2.0
+license: MIT
 keywords:
   - metagenomics
   - taxonomy
@@ -22,4 +22,4 @@ keywords:
   - minimap2
   - benchmarking
 version: 0.1.0
-date-released: 2025-10-23
+date-released: 2024-10-23

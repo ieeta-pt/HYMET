@@ -40,6 +40,41 @@ else:
 PY
 }
 
+normalize_metadata_json(){
+  local json_path="$1"
+  local base_dir="${2:-$(dirname "$1")}"
+  if [[ ! -f "${json_path}" ]]; then
+    return 0
+  fi
+  python3 - "$json_path" "$base_dir" <<'PY'
+import json, os, sys
+
+json_path, base_dir = sys.argv[1:3]
+base_dir = os.path.abspath(base_dir)
+
+def convert(value):
+    if isinstance(value, dict):
+        return {key: convert(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [convert(item) for item in value]
+    if isinstance(value, str) and os.path.isabs(value):
+        try:
+            return os.path.relpath(value, base_dir)
+        except ValueError:
+            return value
+    return value
+
+with open(json_path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+data = convert(data)
+
+with open(json_path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
 need_cmd(){
   local cmd="$1"
   if ! command -v "${cmd}" >/dev/null 2>&1; then

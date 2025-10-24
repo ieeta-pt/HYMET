@@ -199,5 +199,15 @@ python3 "${CONVERTER}" \
   --taxdb "${TAXONKIT_DB:-}"
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "phabox", "profile": "${PROFILE_DST}", "contigs": "${CLASSIFIED_DST}", "prediction_file": "${PREDICTION_FILE}", "db_dir": "${PHABOX_DB_DIR}", "threads": "${THREADS}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "phabox",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CLASSIFIED_DST}",
+  "prediction_file": "${PREDICTION_FILE}",
+  "db_dir": "${PHABOX_DB_DIR}",
+  "threads": "${THREADS}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

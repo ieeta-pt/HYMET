@@ -139,6 +139,51 @@ def command_legacy(args) -> None:
     run_command(cmd, cwd=repo_root, env=None, dry_run=args.dry_run)
 
 
+def command_artifacts(args) -> None:
+    python_cmd = sys.executable or "python"
+    bench_root: Path = args.bench_root
+    case_root: Path = args.case_root
+
+    bench_out = bench_root / "out"
+    if bench_out.is_dir():
+        run_command(
+            [python_cmd, str(bench_root / "aggregate_metrics.py"), "--bench-root", str(bench_root), "--outdir", "out"],
+            cwd=bench_root,
+            dry_run=args.dry_run,
+        )
+        run_command(
+            [python_cmd, str(bench_root / "plot" / "make_figures.py"), "--bench-root", str(bench_root), "--outdir", "out"],
+            cwd=bench_root,
+            dry_run=args.dry_run,
+        )
+    else:
+        print("[hymet] bench/out/ missing; skipping CAMI aggregation")
+
+    case_out = case_root / "out"
+    if case_out.is_dir():
+        run_command([python_cmd, str(case_root / "plot_case.py")], cwd=case_root, dry_run=args.dry_run)
+    else:
+        print("[hymet] case/out/ missing; skipping case-study figures")
+
+    summary_path = case_root / "ablation_summary.tsv"
+    if summary_path.is_file():
+        eval_path = case_root / "ablation_eval_summary.tsv"
+        outdir = case_root / "ablation" / "figures"
+        cmd = [
+            python_cmd,
+            str(case_root / "plot_ablation.py"),
+            "--summary",
+            str(summary_path),
+            "--outdir",
+            str(outdir),
+        ]
+        if eval_path.is_file():
+            cmd.extend(["--eval", str(eval_path)])
+        run_command(cmd, cwd=case_root, dry_run=args.dry_run)
+    else:
+        print("[hymet] case/ablation_summary.tsv missing; skipping ablation figures")
+
+
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--threads", type=int, help="Thread count to pass to HYMET")
     parser.add_argument("--cache-root", help="Override cache root (CACHE_ROOT)")
@@ -235,6 +280,10 @@ def build_parser() -> argparse.ArgumentParser:
     legacy_parser.add_argument("legacy_args", nargs=argparse.REMAINDER, help="Arguments passed to main.pl")
     legacy_parser.add_argument("--dry-run", action="store_true", help="Show command without executing it")
     legacy_parser.set_defaults(func=command_legacy)
+
+    artifacts_parser = subparsers.add_parser("artifacts", help="Regenerate benchmark and case-study artefacts")
+    artifacts_parser.add_argument("--dry-run", action="store_true", help="Show commands without executing them")
+    artifacts_parser.set_defaults(func=command_artifacts)
 
     return parser
 

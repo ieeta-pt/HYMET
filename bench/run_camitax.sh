@@ -121,5 +121,13 @@ if [[ "${KEEP_WORK}" -ne 1 ]]; then
 fi
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "camitax", "profile": "${PROFILE_DST}", "input_fasta": "${CONTIGS_ABS}", "threads": "${THREADS}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "camitax",
+  "profile": "${PROFILE_DST}",
+  "input_fasta": "${CONTIGS_ABS}",
+  "threads": "${THREADS}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

@@ -148,5 +148,18 @@ fi
 KRAKEN_VER=$(kraken2 --version 2>/dev/null | tr '\n' ' ' | sed 's/\s\+/ /g' || echo "unknown")
 BRACKEN_VER=$(bracken -v 2>/dev/null | tr '\n' ' ' | sed 's/\s\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "kraken2+bracken", "profile": "${PROFILE_CAMI}", "classified": "${CLASSIFIED_TSV}", "report": "${BRACKEN_REPORT}", "db_dir": "${DB_DIR}", "threads": "${THREADS}", "output_raw": "${OUTPUT_META}", "kraken2_version": "${KRAKEN_VER}", "bracken_version": "${BRACKEN_VER}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "kraken2+bracken",
+  "profile": "${PROFILE_CAMI}",
+  "classified": "${CLASSIFIED_TSV}",
+  "report": "${BRACKEN_REPORT}",
+  "db_dir": "${DB_DIR}",
+  "threads": "${THREADS}",
+  "output_raw": "${OUTPUT_META}",
+  "kraken2_version": "${KRAKEN_VER}",
+  "bracken_version": "${BRACKEN_VER}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

@@ -161,5 +161,15 @@ python3 "${SCRIPT_DIR}/convert/basta_to_cami.py" \
   --classified-out "${CLASSIFIED_DST}"
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "basta", "profile": "${PROFILE_DST}", "contigs": "${CLASSIFIED_DST}", "blast_output": "${BLAST_OUT}", "blast_db": "${BLAST_DB}", "basta_taxonomy": "${BASTA_TAXONOMY}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "basta",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CLASSIFIED_DST}",
+  "blast_output": "${BLAST_OUT}",
+  "blast_db": "${BLAST_DB}",
+  "basta_taxonomy": "${BASTA_TAXONOMY}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

@@ -114,5 +114,15 @@ python3 "${SCRIPT_DIR}/convert/viwrap_to_cami.py" \
   --classified-out "${CLASSIFIED_DST}"
 
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "viwrap", "profile": "${PROFILE_DST}", "contigs": "${CONTIGS_ABS}", "db_dir": "${VIWRAP_DB_DIR}", "threads": "${THREADS}", "score_cutoff": "${VIWRAP_SCORE_CUTOFF}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "viwrap",
+  "profile": "${PROFILE_DST}",
+  "contigs": "${CONTIGS_ABS}",
+  "db_dir": "${VIWRAP_DB_DIR}",
+  "threads": "${THREADS}",
+  "score_cutoff": "${VIWRAP_SCORE_CUTOFF}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"
