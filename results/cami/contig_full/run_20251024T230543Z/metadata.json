@@ -1,0 +1,24 @@
+{
+  "scenario": "cami",
+  "suite": "contig_full",
+  "run_id": "run_20251024T230543Z",
+  "timestamp": "20251024T230543Z",
+  "manifest": "/mnt/HC_Volume_103721442/HYMET/bench/cami_manifest.tsv",
+  "threads": 8,
+  "tools": [
+    "hymet",
+    "kraken2",
+    "centrifuge",
+    "ganon2",
+    "viwrap",
+    "tama",
+    "squeezemeta",
+    "megapath_nano",
+    "hymet_reads"
+  ],
+  "modes": [
+    "contigs"
+  ],
+  "source": "bench/run_all_cami.sh",
+  "git_commit": "88e46853fd70c232bf0a1b6f554fe7a5abea912a"
+}

@@ -9,7 +9,10 @@ bench/out/**
 case/out/
 case/out_*/
 case/ablation/
-results/
+results/dry_demo/
+results/test_scenario/
+results/**/raw/
+results/**/raw/**/*
 cache/
 data/*
 !data/sketch_checksums.tsv
