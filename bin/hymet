@@ -56,6 +56,7 @@ def command_run(args) -> None:
 def command_bench(args) -> None:
     bench_root: Path = args.bench_root
     env = os.environ.copy()
+    env["BENCH_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)
@@ -79,6 +80,7 @@ def command_bench(args) -> None:
 def command_case(args) -> None:
     case_root: Path = args.case_root
     env = os.environ.copy()
+    env["CASE_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)
@@ -96,6 +98,7 @@ def command_case(args) -> None:
 def command_ablation(args) -> None:
     case_root: Path = args.case_root
     env = os.environ.copy()
+    env["CASE_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)

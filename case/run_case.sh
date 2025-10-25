@@ -56,6 +56,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 MANIFEST="$(resolve_path "${MANIFEST}")"
+MANIFEST_DIR="$(dirname "${MANIFEST}")"
 
 if [[ "${OUT_ROOT}" != "${CASE_ROOT}/out" ]]; then
   CUSTOM_OUT=1
@@ -113,7 +114,7 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
     continue
   fi
 
-  contigs_abs="$(resolve_path "${contigs}")"
+  contigs_abs="$(resolve_path "${contigs}" "${MANIFEST_DIR}")"
   if [[ ! -s "${contigs_abs}" ]]; then
     log "WARNING: sample ${sample_id} missing contigs at ${contigs_abs}; skipping."
     continue

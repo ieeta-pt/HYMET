@@ -32,6 +32,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 MANIFEST="$(resolve_path "${MANIFEST}")"
+MANIFEST_DIR="$(dirname "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
 python3 - "$MANIFEST" "$MAX_SAMPLES" <<'PY' | while IFS=$'	' read -r path url; do
@@ -61,7 +62,7 @@ with open(manifest, newline='') as fh:
             print(f"{path}\t{url}")
 PY
   [[ -z "${path}" ]] && continue
-  abs_path="$(resolve_path "${path}")"
+  abs_path="$(resolve_path "${path}" "${MANIFEST_DIR}")"
   url="${url}"
   if [[ -s "${abs_path}" ]]; then
     log "exists: ${abs_path}"

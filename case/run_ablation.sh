@@ -63,6 +63,7 @@ done
 [[ -n "${TAXA}" ]] || die "Target TaxIDs must be provided via --taxa."
 
 MANIFEST="$(resolve_path "${MANIFEST}")"
+MANIFEST_DIR="$(dirname "${MANIFEST}")"
 SEQMAP="$(resolve_path "${SEQMAP}")"
 BASE_FASTA="$(resolve_path "${BASE_FASTA}")"
 
@@ -114,9 +115,9 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
   [[ -z "${line}" || "${line}" == \#* || "${line}" == sample_id* ]] && continue
   IFS=$'\x1f' read -r sid contigs truth_contigs truth_profile expected citation <<<"$(manifest_split_line "${line}")"
   if [[ "${sid}" == "${SAMPLE_ID}" ]]; then
-    CONTIGS="$(resolve_path "${contigs}")"
-    TRUTH_CONTIGS="$(resolve_path "${truth_contigs}")"
-    TRUTH_PROFILE="$(resolve_path "${truth_profile}")"
+    CONTIGS="$(resolve_path "${contigs}" "${MANIFEST_DIR}")"
+    TRUTH_CONTIGS="$(resolve_path "${truth_contigs}" "${MANIFEST_DIR}")"
+    TRUTH_PROFILE="$(resolve_path "${truth_profile}" "${MANIFEST_DIR}")"
     break
   fi
 done < "${MANIFEST}"

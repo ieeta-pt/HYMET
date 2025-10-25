@@ -6,6 +6,8 @@ if [[ -n "${BENCH_COMMON_SOURCED:-}" ]]; then
 fi
 BENCH_COMMON_SOURCED=1
 
+: "${BENCH_CALLER_PWD:=$(pwd -P)}"
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -27,16 +29,21 @@ ensure_dir(){
 }
 
 resolve_path(){
-  local input="$1"
-  python3 - "$input" "$BENCH_ROOT" <<'PY'
-import os, sys
-value, bench_root = sys.argv[1], sys.argv[2]
+  local input="${1:-}"
+  local base="${2:-${BENCH_CALLER_PWD}}"
+  python3 - "$input" "$base" <<'PY'
+import os, pathlib, sys
+value, base = sys.argv[1], sys.argv[2]
 if not value:
     print("", end="")
-elif os.path.isabs(value):
-    print(os.path.normpath(value), end="")
-else:
-    print(os.path.normpath(os.path.join(bench_root, value)), end="")
+    raise SystemExit
+value = os.path.expanduser(value)
+path = pathlib.Path(value)
+if path.is_absolute():
+    print(str(path.resolve()), end="")
+    raise SystemExit
+base_path = pathlib.Path(base or ".").resolve()
+print(str((base_path / path).resolve()), end="")
 PY
 }
 

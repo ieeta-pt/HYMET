@@ -29,6 +29,10 @@ RESUME=0
 MAX_SAMPLES=0
 SUITE_SCENARIO="${PUBLISH_SCENARIO:-cami}"
 SUITE_NAME="${PUBLISH_SUITE:-canonical}"
+SUITE_NAME_SOURCE="default"
+if [[ -n "${PUBLISH_SUITE:-}" ]]; then
+  SUITE_NAME_SOURCE="env"
+fi
 SUITE_PATH=""
 PUBLISH_RESULTS=1
 
@@ -51,6 +55,42 @@ USAGE
   exit 1
 }
 
+normalize_tool_list(){
+  if [[ $# -eq 0 ]]; then
+    echo ""
+    return
+  fi
+  printf '%s\n' "$@" | LC_ALL=C sort -u | paste -sd',' -
+}
+
+infer_suite_from_tools(){
+  local requested="$1"
+  shift || true
+  local actual_norm
+  actual_norm="$(normalize_tool_list "$@")"
+  local contig_norm
+  contig_norm="$(normalize_tool_list "${DEFAULT_CONTIG_TOOLS[@]}")"
+  local canonical_norm
+  canonical_norm="$(normalize_tool_list "${DEFAULT_FULL_PANEL[@]}")"
+  case "${requested}" in
+    contigs)
+      echo "contig_full"
+      return
+      ;;
+    ""|all)
+      echo "canonical"
+      return
+      ;;
+  esac
+  if [[ -n "${actual_norm}" && "${actual_norm}" == "${contig_norm}" ]]; then
+    echo "contig_full"
+    return
+  fi
+  if [[ -n "${actual_norm}" && "${actual_norm}" == "${canonical_norm}" ]]; then
+    echo "canonical"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --manifest) MANIFEST="$2"; shift 2;;
@@ -60,7 +100,7 @@ while [[ $# -gt 0 ]]; do
     --resume) RESUME=1; shift;;
     --max-samples) MAX_SAMPLES="$2"; shift 2;;
     --scenario) SUITE_SCENARIO="$2"; shift 2;;
-    --suite) SUITE_NAME="$2"; shift 2;;
+    --suite) SUITE_NAME="$2"; SUITE_NAME_SOURCE="cli"; shift 2;;
     --suite-path) SUITE_PATH="$2"; shift 2;;
     --no-publish) PUBLISH_RESULTS=0; shift;;
     -h|--help) usage;;
@@ -69,6 +109,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 MANIFEST="$(resolve_path "${MANIFEST}")"
+MANIFEST_DIR="$(dirname "${MANIFEST}")"
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
 DEFAULT_CONTIG_TOOLS=(hymet kraken2 centrifuge ganon2 viwrap tama squeezemeta megapath_nano)
@@ -113,6 +154,15 @@ if [[ ${#TOOLS[@]} -eq 1 ]]; then
   esac
 fi
 
+if [[ "${SUITE_NAME_SOURCE}" == "default" && -z "${SUITE_PATH}" ]]; then
+  suite_guess="$(infer_suite_from_tools "${TOOLS_REQUEST}" "${TOOLS[@]}")"
+  if [[ -n "${suite_guess}" && "${suite_guess}" != "${SUITE_NAME}" ]]; then
+    tools_label="${TOOLS_REQUEST:-$(IFS=','; echo "${TOOLS[*]}")}"
+    log "Auto-selecting suite ${suite_guess} for tools: ${tools_label}"
+    SUITE_NAME="${suite_guess}"
+  fi
+fi
+
 MEASURE="${SCRIPT_DIR}/lib/measure.sh"
 [[ -x "${MEASURE}" ]] || die "measure.sh not executable: ${MEASURE}"
 
@@ -153,9 +203,9 @@ while IFS=$'\t' read -r sample_id contigs truth_contigs truth_profile rest; do
   SAMPLE_DIR="${OUT_ROOT}/${sample_id}"
   ensure_dir "${SAMPLE_DIR}"
 
-  contigs_abs="$(resolve_path "${contigs}")"
-  truth_profile_abs="$(resolve_path "${truth_profile}")"
-  truth_contigs_abs="$(resolve_path "${truth_contigs}")"
+  contigs_abs="$(resolve_path "${contigs}" "${MANIFEST_DIR}")"
+  truth_profile_abs="$(resolve_path "${truth_profile}" "${MANIFEST_DIR}")"
+  truth_contigs_abs="$(resolve_path "${truth_contigs}" "${MANIFEST_DIR}")"
 
   if [[ ! -s "${contigs_abs}" ]]; then
     log "WARNING: sample ${sample_id} missing contigs at ${contigs_abs}; skipping"
@@ -257,11 +307,7 @@ if [[ -s "${RUNTIME_TSV}" ]]; then
     export PUBLISH_SUITE="${SUITE_NAME}"
     export PUBLISH_MANIFEST="${MANIFEST}"
     export PUBLISH_THREADS="${THREADS}"
-    IFS=',' read -r -a TOOLS_FOR_META <<< "${TOOLS_REQUEST}"
-    if [[ ${#TOOLS_FOR_META[@]} -eq 1 && "${TOOLS_FOR_META[0]}" == "all" ]]; then
-      TOOLS_FOR_META=("${DEFAULT_TOOLS[@]}")
-    fi
-    export PUBLISH_TOOLS="$(IFS=','; echo "${TOOLS_FOR_META[*]}")"
+    export PUBLISH_TOOLS="$(IFS=','; echo "${TOOLS[*]}")"
     export PUBLISH_MODES="contigs"
     SKIP_RECOMPUTE=1 "${SCRIPT_DIR}/publish_results.sh" || log "WARNING: failed to publish results snapshot"
   else
