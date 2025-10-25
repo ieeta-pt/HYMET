@@ -55,42 +55,6 @@ USAGE
   exit 1
 }
 
-normalize_tool_list(){
-  if [[ $# -eq 0 ]]; then
-    echo ""
-    return
-  fi
-  printf '%s\n' "$@" | LC_ALL=C sort -u | paste -sd',' -
-}
-
-infer_suite_from_tools(){
-  local requested="$1"
-  shift || true
-  local actual_norm
-  actual_norm="$(normalize_tool_list "$@")"
-  local contig_norm
-  contig_norm="$(normalize_tool_list "${DEFAULT_CONTIG_TOOLS[@]}")"
-  local canonical_norm
-  canonical_norm="$(normalize_tool_list "${DEFAULT_FULL_PANEL[@]}")"
-  case "${requested}" in
-    contigs)
-      echo "contig_full"
-      return
-      ;;
-    ""|all)
-      echo "canonical"
-      return
-      ;;
-  esac
-  if [[ -n "${actual_norm}" && "${actual_norm}" == "${contig_norm}" ]]; then
-    echo "contig_full"
-    return
-  fi
-  if [[ -n "${actual_norm}" && "${actual_norm}" == "${canonical_norm}" ]]; then
-    echo "canonical"
-  fi
-}
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --manifest) MANIFEST="$2"; shift 2;;
@@ -155,11 +119,16 @@ if [[ ${#TOOLS[@]} -eq 1 ]]; then
 fi
 
 if [[ "${SUITE_NAME_SOURCE}" == "default" && -z "${SUITE_PATH}" ]]; then
-  suite_guess="$(infer_suite_from_tools "${TOOLS_REQUEST}" "${TOOLS[@]}")"
-  if [[ -n "${suite_guess}" && "${suite_guess}" != "${SUITE_NAME}" ]]; then
-    tools_label="${TOOLS_REQUEST:-$(IFS=','; echo "${TOOLS[*]}")}"
-    log "Auto-selecting suite ${suite_guess} for tools: ${tools_label}"
-    SUITE_NAME="${suite_guess}"
+  tools_joined="$(IFS=','; echo "${TOOLS[*]}")"
+  contig_joined="$(IFS=','; echo "${DEFAULT_CONTIG_TOOLS[*]}")"
+  canonical_joined="$(IFS=','; echo "${DEFAULT_FULL_PANEL[*]}")"
+  tools_label="${TOOLS_REQUEST:-${tools_joined}}"
+  if [[ "${SUITE_NAME}" != "contig_full" && ( "${TOOLS_REQUEST}" == "contigs" || "${tools_joined}" == "${contig_joined}" ) ]]; then
+    log "Auto-selecting suite contig_full for tools: ${tools_label}"
+    SUITE_NAME="contig_full"
+  elif [[ "${SUITE_NAME}" != "canonical" && ( -z "${TOOLS_REQUEST}" || "${TOOLS_REQUEST}" == "all" || "${tools_joined}" == "${canonical_joined}" ) ]]; then
+    log "Auto-selecting suite canonical for tools: ${tools_label}"
+    SUITE_NAME="canonical"
   fi
 fi
 
