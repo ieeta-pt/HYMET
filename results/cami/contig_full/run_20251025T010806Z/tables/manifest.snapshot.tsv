@@ -1,0 +1,8 @@
+sample_id	contigs_fa	truth_contigs_tsv	truth_profile_tsv	contigs_url	truth_contigs_url	truth_profile_url
+cami_sample_0	/data/cami/sample_0.fna	/data/cami/sample_0/2017.12.29_11.37.26_sample_0/contigs/gsa_mapping_new.tsv	/data/cami/sample_0/taxonomic_profile_0.txt			
+cami_i_lc	data/cami_i_lc/contigs.fna	data/cami_i_lc/truth_contigs.tsv	data/cami_i_lc/truth_profile.tsv			
+cami_i_mc	data/cami_i_mc/contigs.fna	data/cami_i_mc/truth_contigs.tsv	data/cami_i_mc/truth_profile.tsv			
+cami_i_hc	data/cami_i_hc/contigs.fna	data/cami_i_hc/truth_contigs.tsv	data/cami_i_hc/truth_profile.tsv			
+cami_ii_mousegut	data/cami_ii_mousegut/contigs.fna	data/cami_ii_mousegut/truth_contigs.tsv	data/cami_ii_mousegut/truth_profile.tsv			
+cami_ii_marine	data/cami_ii_marine/contigs.fna	data/cami_ii_marine/truth_contigs.tsv	data/cami_ii_marine/truth_profile.tsv			
+cami_ii_strainmadness	data/cami_ii_strainmadness/contigs.fna	data/cami_ii_strainmadness/truth_contigs.tsv	data/cami_ii_strainmadness/truth_profile.tsv			
