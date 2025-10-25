@@ -1,0 +1,21 @@
+{
+  "scenario": "cami",
+  "suite": "contig_vs_reads",
+  "run_id": "run_20251025T020028Z",
+  "timestamp": "20251025T020028Z",
+  "manifest": "/mnt/HC_Volume_103721442/HYMET/bench/cami_manifest.tsv",
+  "dry_run": false,
+  "threads": 8,
+  "contig_tools": "hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano",
+  "read_tools": "hymet_reads",
+  "modes": [
+    "contigs",
+    "reads"
+  ],
+  "primary_mode": "contigs",
+  "commands": [
+    "mode=contigs tools=hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano command=env THREADS=8 HYMET_BENCH_MODE=contigs BENCH_OUT_ROOT=/data/HYMET/results/cami/contig_vs_reads/run_20251025T020028Z/raw/contigs /data/HYMET/bin/hymet bench --manifest /mnt/HC_Volume_103721442/HYMET/bench/cami_manifest.tsv --tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano",
+    "mode=reads tools=hymet_reads command=env THREADS=8 READ_CHUNK_SIZE=250 READ_MIN_CHUNK=125 HYMET_BENCH_MODE=reads BENCH_OUT_ROOT=/data/HYMET/results/cami/contig_vs_reads/run_20251025T020028Z/raw/reads /data/HYMET/bin/hymet bench --manifest /mnt/HC_Volume_103721442/HYMET/bench/cami_manifest.tsv --tools hymet_reads"
+  ],
+  "git_commit": "1861384ff7d69e2e05fe105c40726374243acbb2"
+}
