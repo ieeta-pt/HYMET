@@ -154,7 +154,7 @@ def plot_top_taxa_panels(results: List[SampleResult], fig_root: Path) -> None:
     fig, axes = plt.subplots(n, 1, figsize=(11, 3.2 * n), constrained_layout=True)
     if n == 1:
         axes = [axes]
-    palette = sns.color_palette("Spectral", MAX_TAXA)
+    palette = sns.color_palette("Spectral", DEFAULT_MAX_TAXA)
 
     for ax, sample in zip(axes, results):
         taxa = sample.top_taxa

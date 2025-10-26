@@ -12,7 +12,9 @@ From: continuumio/miniconda3:latest
 %post
     set -e
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update && apt-get install -y perl wget && rm -rf /var/lib/apt/lists/*
+    apt-get update && apt-get install -y bc ca-certificates perl unzip wget && rm -rf /var/lib/apt/lists/*
+    wget -qO /usr/local/bin/micromamba https://micromamba.snakepit.net/api/micromamba/linux-64/latest
+    chmod +x /usr/local/bin/micromamba
     conda env create -f /tmp/environment.yml
 
 %environment
@@ -21,4 +23,3 @@ From: continuumio/miniconda3:latest
 
 %runscript
     exec "$@"
-
