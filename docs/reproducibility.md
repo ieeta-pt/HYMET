@@ -137,7 +137,7 @@ cd case
 cd ..
 ```
 
-Verify `case/data/gut_case/*.fna` and `case/data/zymo_mc/*.fna` exist, plus truth sets under `case/truth/`.
+Verify `/data/case/gut_case_contigs.fna` and `/data/case/zymo_mc_contigs.fna` exist, plus truth sets under `case/truth/`.
 
 ---
 
@@ -147,7 +147,7 @@ Run dry-run invocations to ensure the CLI resolves paths and dependencies.
 
 ```bash
 bin/hymet version
-bin/hymet run   --contigs bench/data/cami_i_lc/contigs.fna --out out/smoke --threads 1 --dry-run
+bin/hymet run   --contigs bench/data/cami_i_lc/contigs.fna --out results/smoke --threads 1 --dry-run
 bin/hymet bench --manifest bench/cami_manifest.tsv --tools hymet --max-samples 1 --dry-run
 bin/hymet case  --manifest case/manifest_zymo.tsv --dry-run
 ```
@@ -178,7 +178,7 @@ workflows/run_cami_suite.sh \
   --scenario cami \
   --suite canonical \
   --modes contigs \
-  --contig-tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta
+  --contig-tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano
 ```
 
 The runner sets `BENCH_OUT_ROOT` per mode, stages every tool under `results/cami/canonical/run_<timestamp>/raw/<mode>/<sample>/<tool>/`, and copies the derived TSVs/figures into `tables/` and `figures/`. No manual `cp` steps are required.
@@ -186,7 +186,7 @@ The runner sets `BENCH_OUT_ROOT` per mode, stages every tool under `results/cami
 If you invoke the low-level harness directly (`bin/hymet bench` or `bench/run_all_cami.sh`), publish the results afterwards so they follow the same hierarchy:
 
 ```bash
-bench/run_all_cami.sh --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta
+bench/run_all_cami.sh --manifest bench/cami_manifest.tsv --tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano
 bench/publish_results.sh --scenario cami --suite canonical
 ```
 
@@ -233,13 +233,24 @@ sha256sum "$SUITE"/tables/runtime_memory.tsv >> "$SUITE"/checksums.json
 
 ### 9.1 Standard case run
 
+Run every bundled suite (canonical + gut + zymo) so that raw outputs, tables, and figures are captured per run:
+
 ```bash
-export CACHE_ROOT="$(pwd)/case/data/downloaded_genomes/cache_case"
-export THREADS=8
-bin/hymet case --manifest case/manifest.tsv --sanity-metaphlan
+cd case
+THREADS=16 ./run_cases_full.sh                 # add --suite <name> to restrict, --dry-run to preview
 ```
 
-Outputs now land under `results/cases/canonical/run_<timestamp>/`:
+If you need to execute a single manifest manually:
+
+```bash
+export CACHE_ROOT="$(pwd)/data/downloaded_genomes/cache_case"
+export THREADS=8
+bin/hymet case --manifest case/manifest.tsv
+python case/plot_case.py --case-root results/cases/canonical/run_<timestamp>/raw --figures-dir results/cases/canonical/run_<timestamp>/figures
+python bench/plot/make_figures.py --bench-root bench --tables results/cases/canonical/run_<timestamp>/tables --outdir results/cases/canonical/run_<timestamp>/figures
+```
+
+Outputs land under `results/cases/canonical/run_<timestamp>/`:
 - `raw/<sample>/hymet/` – CAMI profile, classified contigs, metadata.
 - `raw/<sample>/metaphlan/` – optional sanity comparison.
 - `tables/runtime_memory.tsv`, `tables/top_taxa_summary.tsv` – combined view.
@@ -281,13 +292,14 @@ Outputs:
 You can rebuild all plots purely from the TSV aggregates.
 
 ```bash
-# CAMI aggregates and figures
+# CAMI aggregates and figures (when re-running the harness directly)
 python bench/aggregate_metrics.py --bench-root bench --outdir out
-python bench/plot/make_figures.py --bench-root bench --outdir out
+python bench/plot/make_figures.py --bench-root bench --tables results/cami/<suite>/run_<timestamp>/tables/<mode> --outdir results/cami/<suite>/run_<timestamp>/figures/<mode>
 
 # Case-study figures (published run)
 CASE_RUN=results/cases/canonical/run_<timestamp>
 python case/plot_case.py --case-root "$CASE_RUN/raw" --figures-dir "$CASE_RUN/figures"
+python bench/plot/make_figures.py --bench-root bench --tables "$CASE_RUN/tables" --outdir "$CASE_RUN/figures"
 
 # Ablation figures
 ABLATION_RUN=results/ablation/canonical/run_<timestamp>

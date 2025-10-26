@@ -72,11 +72,12 @@ For a given run `results/<scenario>/<suite>/run_<timestamp>/`:
 | `figures/<mode>/fig_*.png` | Accuracy/L1/peak-memory plots regenerated from the raw data. |
 | `metadata.json` | Timestamp, git commit, manifest path, tool roster, commands, environment variables. |
 
-To regenerate figures for a specific mode:
+To regenerate figures for a specific mode, point the plotting helper at that mode’s `tables/` directory:
 
 ```bash
 python bench/plot/make_figures.py \
-  --bench-root results/cami/<suite>/run_<timestamp>/raw/contigs \
+  --bench-root bench \
+  --tables results/cami/<suite>/run_<timestamp>/tables/contigs \
   --outdir results/cami/<suite>/run_<timestamp>/figures/contigs
 ```
 
@@ -119,7 +120,7 @@ Publish the tarball alongside the manifest snapshot stored in `tables/<mode>/man
 |---------|------------|
 | `manifest not found` | Pass `--manifest /path/to/cami_manifest.tsv` or run from the repo root. |
 | Suite directory already exists | Use a new `--suite`/`--scenario` combination or remove the previous `run_<timestamp>/` folder. |
-| Missing figures | Re-run `python bench/plot/make_figures.py` against the relevant `raw/<mode>/` directory. |
+| Missing figures | Re-run `python bench/plot/make_figures.py --bench-root bench --tables results/.../tables/<mode> --outdir results/.../figures/<mode>`. |
 | Missing contig accuracy | Only tools that emit per-contig assignments populate `contig_accuracy_per_tool.tsv` (HYMET, Kraken2, Centrifuge, ganon2, ViWrap, TAMA, SqueezeMeta, MegaPath-Nano). |
 
 ---

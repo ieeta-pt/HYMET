@@ -17,7 +17,11 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 - **Deployment options** – Install via Bioconda, Docker/Singularity images, or a source checkout with the supplied environment file.
 
 <p align="center">
-  <img src="results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank (RUN_0)" width="60%">
+  <img src="./results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank (RUN_0)" width="60%">
+</p>
+
+<p align="center">
+  <img src="./results/cases/canonical/run_20251026T173406Z/figures/fig_case_runtime.png" alt="HYMET case-study runtime summary (canonical suite)" width="60%">
 </p>
 
 <!-- Detailed benchmark figures and discussion live in bench/results_summary.md -->
@@ -38,21 +42,21 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 
 ```bash
 # Single-sample classification
-your/env/bin/hymet run   --contigs /path/to/sample.fna   --out out/sample   --threads 16
+bin/hymet run   --contigs /path/to/sample.fna   --out results/sample   --threads 16
 
 # CAMI benchmark (HYMET + baselines)
-your/env/bin/hymet bench   --manifest bench/cami_manifest.tsv   --tools hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4   --threads 16
+bin/hymet bench   --manifest bench/cami_manifest.tsv   --tools hymet,kraken2,centrifuge,ganon2,viwrap,tama,squeezemeta,megapath_nano   --threads 16
 
 # Case-study bundle (MGnify gut + Zymo mock community)
 ./case/run_cases_full.sh   --threads 16      # canonical + gut + zymo suites; add --suite to limit the run
 # or run a single manifest via the CLI:
-your/env/bin/hymet case   --manifest case/manifest_zymo.tsv   --threads 8
+bin/hymet case   --manifest case/manifest_zymo.tsv   --threads 8
 
 # Reference ablation experiment
-your/env/bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.5,1.0   --threads 4
+bin/hymet ablation   --sample zymo_mc   --taxa 1423,562   --levels 0,0.5,1.0   --threads 4
 
 # Refresh supplementary tables and figures
-your/env/bin/hymet artifacts
+bin/hymet artifacts
 ```
 
 `bin/hymet` auto-detects `HYMET_ROOT`. Export it explicitly (`export HYMET_ROOT=/path/to/HYMET`) if you prefer running from arbitrary directories. The legacy Perl entry point remains available as `bin/hymet legacy -- …`.

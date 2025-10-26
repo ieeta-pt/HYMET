@@ -74,7 +74,7 @@ Columns:
 - `truth_profile_tsv`
 - Optional `*_url` columns used by `fetch_cami.sh`.
 
-Relative paths are resolved against `bench/`; absolute paths (e.g., `/data/cami/...`) are allowed.
+Relative paths are resolved against `bench/`; absolute paths (e.g., `bench/data/cami/...`) are allowed.
 
 ### 3.2 Lightweight CAMI subsets
 
@@ -82,8 +82,8 @@ Relative paths are resolved against `bench/`; absolute paths (e.g., `/data/cami/
 
 ```bash
 python ../tools/generate_cami_subsets.py \
-  --fasta /data/cami/sample_0.fna \
-  --mapping /data/cami/sample_0/2017.12.29_11.37.26_sample_0/contigs/gsa_mapping_new.tsv \
+  --fasta bench/data/cami/sample_0.fna \
+  --mapping bench/data/cami/sample_0/2017.12.29_11.37.26_sample_0/contigs/gsa_mapping_new.tsv \
   --outdir $(pwd)/data
 ```
 
@@ -174,7 +174,7 @@ BASTA consumes translated alignments and assigns taxonomy via an LCA strategy. T
    export BASTA_DIAMOND_DB=/path/to/diamond/db.dmnd   # optional if DIAMOND uses a different basename
    export DIAMOND_EXTRA_OPTS="--fast"                 # forwarded to diamond blastx
    export BASTA_TAXON_MODE=uni
-   THREADS=8 ./run_basta.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   THREADS=8 ./run_basta.sh --sample cami_sample_0 --contigs bench/data/cami/sample_0.fna
    ```
    Additional environment toggles:
    - `BASTA_USE_DIAMOND=1` – force DIAMOND even when both databases exist.
@@ -207,7 +207,7 @@ PhaBOX performs phage lifestyle/host predictions. The harness relabels contigs, 
    ```bash
    export PHABOX_DB_DIR=/path/to/phabox_db_v2.0.0
    export PHABOX_CMD=phabox2                     # e.g., "python /opt/phabox/bin/phabox2"
-   THREADS=8 ./run_phabox.sh --sample cami_sample_0 --contigs /data/cami/sample_0.fna
+   THREADS=8 ./run_phabox.sh --sample cami_sample_0 --contigs bench/data/cami/sample_0.fna
    ```
    Additional toggles:
    - `PHABOX_TASK=phagcn` (default task)

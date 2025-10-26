@@ -24,14 +24,14 @@ case/
    Provide the contig FASTA and optional metadata. Supply ground-truth paths when available to enable F1/misassignment metrics during ablations:
    ```tsv
    sample_id	contigs_fa	truth_contigs_tsv	truth_profile_tsv	expected_taxa	citation
-   gut_case	/data/case/gut_assembly.fna			"Bacteroides fragilis;Escherichia coli"	"Doe et al., Microbiome (2024)"
+   gut_case	case/gut_assembly.fna			"Bacteroides fragilis;Escherichia coli"	"Doe et al., Microbiome (2024)"
    ```
 
 2. **Fetch data (optional helper)**
 
    ```bash
    cd HYMET/case
-   ./fetch_case_data.sh              # downloads both samples to /data/case
+   ./fetch_case_data.sh              # downloads both samples to case/
    ./fetch_case_data.sh zymo_mc      # download only the mock community
    ./fetch_case_data.sh --dest /tmp/case gut_case
    ```
@@ -42,7 +42,7 @@ case/
    cd HYMET/case
    THREADS=16 ./run_case.sh --sanity-metaphlan
    # or explicitly pin the suite:
-   THREADS=16 ./run_case.sh --suite reviewer_panel --scenario cases
+   THREADS=16 ./run_case.sh --suite canonical --scenario cases
    # run every bundled suite (canonical + gut + zymo) end-to-end:
    ./run_cases_full.sh --threads 16
    ```
