@@ -13,7 +13,7 @@ THREADS="${THREADS:-8}"
 VIWRAP_ENV_PREFIX="${VIWRAP_ENV_PREFIX:-/opt/envs/genomad}"
 VIWRAP_DB_DIR="${VIWRAP_DB_DIR:-}"
 VIWRAP_CMD="${VIWRAP_CMD:-genomad}"
-VIWRAP_EXTRA_OPTS="${VIWRAP_EXTRA_OPTS:-}"
+VIWRAP_EXTRA_OPTS="${VIWRAP_EXTRA_OPTS:---disable-nn-classification}"
 VIWRAP_SCORE_CUTOFF="${VIWRAP_SCORE_CUTOFF:-0.5}"
 
 usage(){
@@ -43,6 +43,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "${SAMPLE}" && -n "${CONTIGS}" ]] || usage
+
+if [[ -z "${VIWRAP_DB_DIR}" ]]; then
+  for candidate in \
+    "${HYMET_ROOT}/ref/viwrap/genomad_db/genomad_db" \
+    "${HYMET_ROOT}/ref/viwrap/genomad_db" \
+    "/mnt/HC_Volume_103721442/ref/viwrap/genomad_db/genomad_db" \
+    "/mnt/HC_Volume_103721442/ref/viwrap/genomad_db"
+  do
+    if [[ -d "${candidate}" ]]; then
+      VIWRAP_DB_DIR="${candidate}"
+      break
+    fi
+  done
+fi
 
 OUT_DIR="${OUT_DIR:-${BENCH_ROOT}/out/${SAMPLE}/viwrap}"
 OUT_DIR="$(resolve_path "${OUT_DIR}")"

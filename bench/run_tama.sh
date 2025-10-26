@@ -67,6 +67,21 @@ done
 
 [[ -n "${SAMPLE}" ]] || usage
 
+if [[ -z "${TAMA_ROOT}" ]]; then
+  for candidate in \
+    "${HYMET_ROOT}/tools/TAMA" \
+    "${HYMET_ROOT}/../tools/TAMA" \
+    "/mnt/HC_Volume_103778688/tools/TAMA" \
+    "/mnt/HC_Volume_103721442/tools/TAMA" \
+    "/data/tools/TAMA"
+  do
+    if [[ -d "${candidate}" ]]; then
+      TAMA_ROOT="${candidate}"
+      break
+    fi
+  done
+fi
+
 OUT_DIR="${OUT_DIR:-${BENCH_ROOT}/out/${SAMPLE}/tama}"
 OUT_DIR="$(resolve_path "${OUT_DIR}")"
 ensure_dir "${OUT_DIR}"

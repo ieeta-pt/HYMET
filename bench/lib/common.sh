@@ -19,6 +19,9 @@ fi
 _bench__dir="$(cd "$(dirname "${_bench__this}")" && pwd)"
 export BENCH_ROOT="$(cd "${_bench__dir}/.." && pwd)"
 export HYMET_ROOT="$(cd "${BENCH_ROOT}/.." && pwd)"
+if [[ -z "${TAXONKIT_DB:-}" && -d "${HYMET_ROOT}/taxonomy_files" ]]; then
+  export TAXONKIT_DB="${HYMET_ROOT}/taxonomy_files"
+fi
 
 log(){ printf '[%(%F %T)T] %s\n' -1 "$*"; }
 die(){ log "ERROR: $*"; exit 1; }
@@ -26,6 +29,10 @@ die(){ log "ERROR: $*"; exit 1; }
 ensure_dir(){
   local path="$1"
   mkdir -p "${path}"
+  if [[ -d "${path}" ]]; then
+    # Make it discoverable by external tools that look up outputs by env
+    chmod 755 "${path}" 2>/dev/null || true
+  fi
 }
 
 resolve_path(){

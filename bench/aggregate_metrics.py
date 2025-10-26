@@ -74,22 +74,24 @@ def write_summary(path: Path, rows: List[Dict[str, str]], fieldnames: List[str])
 def main() -> None:
     ap = argparse.ArgumentParser(description="Aggregate CAMI evaluation metrics across samples and tools.")
     ap.add_argument("--bench-root", default=str(Path(__file__).resolve().parent), help="Bench directory (default: script parent).")
-    ap.add_argument("--outdir", default="out", help="Relative output directory for aggregated tables.")
+    ap.add_argument("--samples-root", help="Directory that contains per-sample outputs (default: <bench-root>/out).")
+    ap.add_argument("--outdir", default="out", help="Relative or absolute output directory for aggregated tables.")
     args = ap.parse_args()
 
     bench_root = Path(args.bench_root)
-    out_root = bench_root / args.outdir
+    samples_root = Path(args.samples_root) if args.samples_root else bench_root / "out"
+    out_path = Path(args.outdir)
+    out_root = out_path if out_path.is_absolute() else bench_root / out_path
     out_root.mkdir(parents=True, exist_ok=True)
 
     per_sample_rows: List[Dict[str, str]] = []
     contig_rows: List[Dict[str, str]] = []
 
-    sample_root = bench_root / "out"
-    if not sample_root.is_dir():
-        print(f"[aggregate] No benchmark outputs under {sample_root}; skipping aggregation.")
+    if not samples_root.is_dir():
+        print(f"[aggregate] No benchmark outputs under {samples_root}; skipping aggregation.")
         return
 
-    sample_dirs = [p for p in sample_root.iterdir() if p.is_dir()]
+    sample_dirs = [p for p in samples_root.iterdir() if p.is_dir()]
     for sdir in sorted(sample_dirs, key=lambda p: p.name):
         sample = sdir.name
         for tool_dir in sorted([p for p in sdir.iterdir() if p.is_dir()]):

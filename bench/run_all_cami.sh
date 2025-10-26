@@ -136,6 +136,7 @@ MEASURE="${SCRIPT_DIR}/lib/measure.sh"
 [[ -x "${MEASURE}" ]] || die "measure.sh not executable: ${MEASURE}"
 
 OUT_ROOT="${BENCH_OUT_ROOT:-${SCRIPT_DIR}/out}"
+export BENCH_OUT_ROOT="${OUT_ROOT}"
 RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
 ensure_dir "${OUT_ROOT}"
 if [[ ${RESUME} -eq 0 ]]; then
@@ -200,6 +201,9 @@ while IFS=$'\t' read -r sample_id contigs truth_contigs truth_profile rest; do
       hymet_reads)
         run_cmd+=("--out" "${TOOL_DIR}" "--mode" "reads")
         ;;
+      kraken2|centrifuge|ganon2|viwrap|tama|squeezemeta|megapath_nano)
+        run_cmd+=("--out" "${TOOL_DIR}")
+        ;;
     esac
     "${MEASURE}" \
       --tool "${tool}" \
@@ -256,7 +260,7 @@ done < "${MANIFEST}"
 
 if [[ -s "${RUNTIME_TSV}" ]]; then
   log "Aggregating metrics"
-  python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --outdir "${OUT_ROOT}"
+  python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --samples-root "${OUT_ROOT}" --outdir "${OUT_ROOT}"
   python3 "${SCRIPT_DIR}/plot/make_figures.py" --bench-root "${SCRIPT_DIR}" --outdir "${OUT_ROOT}" || log "WARNING: plotting step failed"
 
   if [[ ${PUBLISH_RESULTS} -eq 1 ]]; then

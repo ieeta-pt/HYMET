@@ -12,6 +12,9 @@ OUT_DIR=""
 THREADS="${THREADS:-8}"
 
 MPN_ROOT="${MPN_ROOT:-}"
+if [[ -z "${MPN_CMD:-}" && -d "/opt/envs/megapath_nano" ]]; then
+  MPN_CMD="micromamba run -p /opt/envs/megapath_nano python3"
+fi
 MPN_CMD="${MPN_CMD:-python3}"
 MPN_SCRIPT="${MPN_SCRIPT:-megapath_nano.py}"
 MPN_CHUNK_SIZE="${MPN_CHUNK_SIZE:-50000}"
@@ -47,6 +50,22 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "${SAMPLE}" && -n "${CONTIGS}" ]] || usage
+if [[ -z "${MPN_ROOT}" ]]; then
+  for candidate in \
+    "${HYMET_ROOT}/MegaPath-Nano" \
+    "${HYMET_ROOT}/MegaPath-Nano/MegaPath-Nano" \
+    "${HYMET_ROOT}/../MegaPath-Nano" \
+    "${HYMET_ROOT}/../MegaPath-Nano/MegaPath-Nano" \
+    "/mnt/HC_Volume_103721442/MegaPath-Nano" \
+    "/mnt/HC_Volume_103721442/MegaPath-Nano/MegaPath-Nano" \
+    "/data/tools/MegaPath-Nano"
+  do
+    if [[ -d "${candidate}" && -f "${candidate}/bin/${MPN_SCRIPT}" ]]; then
+      MPN_ROOT="${candidate}"
+      break
+    fi
+  done
+fi
 [[ -n "${MPN_ROOT}" ]] || die "MPN_ROOT must point to the MegaPath-Nano repository"
 
 OUT_DIR="${OUT_DIR:-${BENCH_ROOT}/out/${SAMPLE}/megapath_nano}"

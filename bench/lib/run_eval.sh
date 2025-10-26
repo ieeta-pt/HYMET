@@ -55,7 +55,11 @@ if [[ -z "${SAMPLE}" || -z "${TOOL}" || -z "${PRED_PROFILE}" || -z "${TRUTH_PROF
 fi
 
 if [[ -z "${OUTDIR}" ]]; then
-  OUTDIR="${BENCH_ROOT}/out/${SAMPLE}/${TOOL}/eval"
+  if [[ -n "${BENCH_OUT_ROOT:-}" ]]; then
+    OUTDIR="$(resolve_path "${BENCH_OUT_ROOT}")/${SAMPLE}/${TOOL}/eval"
+  else
+    OUTDIR="${BENCH_ROOT}/out/${SAMPLE}/${TOOL}/eval"
+  fi
 fi
 
 ensure_dir "${OUTDIR}"
