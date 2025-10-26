@@ -7,7 +7,8 @@ import argparse
 import csv
 import math
 import os
-from collections import defaultdict
+import re
+from collections import Counter, defaultdict
 from pathlib import Path
 
 RANK_ORDER = ["superkingdom", "phylum", "class", "order", "family", "genus", "species"]
@@ -29,18 +30,138 @@ PREFERRED_TOOL_ORDER = [
     "squeezemeta",
 ]
 PALETTE = [
-    "#264653",
-    "#2a9d8f",
-    "#e9c46a",
-    "#f4a261",
-    "#e76f51",
-    "#9d4edd",
-    "#457b9d",
-    "#f72585",
+    "#0f4c81",  # deep sapphire
+    "#4d908e",  # muted teal
+    "#c8b6ff",  # lavender bloom
+    "#ff6b6b",  # coral rose
+    "#ffd166",  # golden hour
+    "#5f0f40",  # mulberry
+    "#277da1",  # blue lagoon
+    "#90be6d",  # fresh fern
+    "#f28482",  # salmon blush
+    "#118ab2",  # refined cyan
+    "#ef709d",  # modern magenta
+    "#7b6ef6",  # periwinkle pop
 ]
 
 # Whether an emoji-capable font was detected and enabled
 HAS_EMOJI_FONT = False
+
+TOOL_NAME_OVERRIDES = {
+    "basta": "BASTA",
+    "camitax": "CAMITAX",
+    "centrifuge": "Centrifuge",
+    "ganon2": "Ganon 2",
+    "hymet": "HYMET",
+    "kraken2": "Kraken 2",
+    "megapath_nano": "MegaPath-Nano",
+    "metaphlan4": "MetaPhlAn 4",
+    "phabox": "PHABOX",
+    "phyloflash": "phyloFlash",
+    "snakemags": "SnakeMAGs",
+    "sourmash_gather": "sourmash gather",
+    "squeezemeta": "SqueezeMeta",
+    "tama": "TAMA",
+    "viwrap": "ViWrap",
+}
+
+
+def soften_color(color, mix: float = 0.18):
+    """Blend a color toward white for softer fills."""
+    from matplotlib.colors import to_rgb
+
+    if not color:
+        color = "#4b5563"
+    try:
+        r, g, b = to_rgb(color)
+    except ValueError:
+        r, g, b = to_rgb("#4b5563")
+    mix = max(0.0, min(1.0, mix))
+    return tuple(r + (1.0 - r) * mix for r in (r, g, b))
+
+
+def format_tool_label(tool: str) -> str:
+    return TOOL_NAME_OVERRIDES.get(tool, tool.replace("_", " ").title())
+
+
+def format_seconds(value, include_long: bool = False) -> str:
+    try:
+        seconds = float(value)
+    except Exception:
+        return "NA"
+    if seconds <= 0:
+        return "NA"
+    base = f"{seconds:.0f} s" if seconds >= 1 else f"{seconds:.2f} s"
+    if not include_long or seconds < 60:
+        return base
+    minutes = seconds / 60.0
+    if minutes < 60:
+        return f"{base} ({minutes:.2f} min)"
+    hours = minutes / 60.0
+    return f"{base} ({hours:.2f} h)"
+
+
+def format_gib(value) -> str:
+    try:
+        gib = float(value)
+    except Exception:
+        return "NA"
+    if gib <= 0:
+        return "NA"
+    if gib < 1:
+        return f"{gib:.2f} GiB"
+    if gib < 10:
+        return f"{gib:.2f} GiB"
+    return f"{gib:.1f} GiB"
+
+
+def env_flag(name: str, default: bool = False) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    val = val.strip().lower()
+    if not val:
+        return default
+    return val in {"1", "true", "yes", "on"}
+
+
+def percentile(values, q):
+    if not values:
+        return 0.0
+    arr = sorted(values)
+    idx = (len(arr) - 1) * q
+    lower = int(idx)
+    upper = min(lower + 1, len(arr) - 1)
+    weight = idx - lower
+    return arr[lower] * (1 - weight) + arr[upper] * weight
+
+
+def describe_series(values):
+    clean = [v for v in values if v and v > 0]
+    if not clean:
+        return {}
+    clean.sort()
+    mid = clean[len(clean) // 2] if len(clean) % 2 else (clean[len(clean) // 2 - 1] + clean[len(clean) // 2]) / 2
+    return {
+        "count": len(clean),
+        "min": clean[0],
+        "max": clean[-1],
+        "median": mid,
+        "p10": percentile(clean, 0.10),
+        "p90": percentile(clean, 0.90),
+    }
+
+
+def parse_threads(command: str | None):
+    if not command:
+        return None
+    match = re.search(r"--threads(?:\s+|=)(\d+)", command)
+    if match:
+        try:
+            return int(match.group(1))
+        except Exception:
+            return None
+    return None
 
 
 def load_table(path: Path, key_cols):
@@ -982,6 +1103,8 @@ def plot_per_sample_stack(summary_rows, out_path: Path, tool_colors):
 def summarise_runtime(runtime_rows, bench_root: Path | None = None):
     data = defaultdict(lambda: {"cpu_sec": [], "wall_sec": [], "max_gb": []})
     samples_by_tool = defaultdict(set)
+    threads_by_tool = defaultdict(list)
+    all_samples = set()
     for row in runtime_rows:
         if row.get("stage") != "run":
             continue
@@ -991,6 +1114,7 @@ def summarise_runtime(runtime_rows, bench_root: Path | None = None):
         sample = row.get("sample") or row.get("dataset")
         if sample:
             samples_by_tool[tool].add(sample)
+            all_samples.add(sample)
         try:
             user = float(row.get("user_seconds", 0.0))
         except ValueError:
@@ -1010,13 +1134,16 @@ def summarise_runtime(runtime_rows, bench_root: Path | None = None):
         data[tool]["cpu_sec"].append(user + sys_time)
         data[tool]["wall_sec"].append(wall)
         data[tool]["max_gb"].append(rss)
+        threads = parse_threads(row.get("command"))
+        if threads:
+            threads_by_tool[tool].append(threads)
     # Special handling: CAMITAX Nextflow runs can be under-reported by /usr/bin/time
     # Try to parse wall time from Nextflow logs when available, falling back to measured values.
     if bench_root is not None and samples_by_tool.get("camitax"):
         cami_out = bench_root / "out"
         parsed_wall = []
-        import re
         from datetime import datetime
+
         ts_re = re.compile(r"^(?P<ts>[A-Za-z]{3}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?) ")
 
         def parse_ts(s: str):
@@ -1056,288 +1183,619 @@ def summarise_runtime(runtime_rows, bench_root: Path | None = None):
             # Replace measured wall times for camitax with parsed ones (in seconds)
             data["camitax"]["wall_sec"] = parsed_wall
 
+    thread_meta = {}
+    for tool, values in threads_by_tool.items():
+        if values:
+            thread_meta[tool] = Counter(values).most_common(1)[0][0]
+
     summary = {}
     for tool, metrics in data.items():
-        cpu_vals = [v for v in metrics["cpu_sec"] if v >= 0]
-        wall_vals = [v for v in metrics["wall_sec"] if v >= 0]
-        mem_vals = [v for v in metrics["max_gb"] if v >= 0]
+        cpu_vals = [v for v in metrics["cpu_sec"] if v > 0]
+        wall_vals = [v for v in metrics["wall_sec"] if v > 0]
+        mem_vals = [v for v in metrics["max_gb"] if v > 0]
+        cpu_stats = describe_series(cpu_vals)
+        wall_stats = describe_series(wall_vals)
+        mem_stats = describe_series(mem_vals)
         summary[tool] = {
             "cpu_min": mean(cpu_vals) / 60.0 if cpu_vals else 0.0,
             "wall_min": mean(wall_vals) / 60.0 if wall_vals else 0.0,
             "max_gb": max(mem_vals) if mem_vals else 0.0,
+            "cpu_sec_stats": cpu_stats,
+            "wall_sec_stats": wall_stats,
+            "mem_gb_stats": mem_stats,
+            "sample_count": len(samples_by_tool.get(tool, [])),
+            "threads": thread_meta.get(tool),
         }
-    return summary
+
+    meta = {
+        "thread_counts": sorted({v for v in thread_meta.values() if v}),
+        "total_samples": sorted(all_samples),
+    }
+    return summary, meta
 
 
-def plot_runtime(summary, out_path: Path, tool_colors):
+
+def plot_runtime(
+    summary,
+    out_path: Path,
+    tool_colors,
+    *,
+    metric_key: str = 'wall_min',
+    stats_key: str = 'wall_sec_stats',
+    title: str = 'Runtime budget by tool',
+    xlabel: str = 'Runtime per CAMI sample (seconds, log10 scale)',
+    subtitle: str = 'Lower is better - aggregated across CAMI samples',
+    runtime_meta: dict | None = None,
+    show_notes: bool = False,
+):
     import matplotlib.pyplot as plt
-    import math as _math
+    from matplotlib import patheffects as _pe
+    from matplotlib.ticker import FuncFormatter, LogLocator
 
-    def _fmt_minutes(m):
-        """Human-friendly time from minutes.
+    runtime_meta = runtime_meta or {}
 
-        Rules:
-        - < 90s: show seconds ("Xs")
-        - < 10m: show one decimal minute ("X.Ym")
-        - < 60m: whole minutes ("Xm")
-        - < 24h: hours with optional minutes ("Xh Ym")
-        - >= 24h: days with optional hours ("Xd Yh")
-        """
-        try:
-            m = float(m)
-        except Exception:
-            return "NA"
-        if m <= 0:
-            return "NA"
-        s = m * 60.0
-        if s < 90:
-            # Avoid showing "0s" for tiny non-zero values
-            return f"{max(1, int(round(s)))}s"
-        if m < 10:
-            return f"{m:.1f}m"
-        if m < 60:
-            return f"{int(round(m))}m"
-        h = m / 60.0
-        if h < 24:
-            whole = int(h)
-            rem_m = int(round((h - whole) * 60))
-            return f"{whole}h" + (f" {rem_m}m" if rem_m and whole < 8 else "")
-        d = h / 24.0
-        whole = int(d)
-        rem_h = int(round((d - whole) * 24))
-        return f"{whole}d" + (f" {rem_h}h" if rem_h and whole < 5 else "")
-
-    # Use all known tools (color key) so the figure stays consistent
-    tools_all = order_tools(list(tool_colors.keys() or summary.keys()))
-    if not tools_all:
-        return
-
-    # Build list and sort by ascending wall-clock time (faster tools first)
-    items = []  # (tool, value or None)
-    for t in tools_all:
-        v = summary.get(t, {}).get("wall_min")
-        if v is None or v <= 0:
-            items.append((t, None))
-        else:
-            items.append((t, float(v)))
-
-    # Separate available and missing, sort available ascending (lower is better)
-    avail = [(t, v) for t, v in items if v is not None]
-    missing = [(t, v) for t, v in items if v is None]
-    avail.sort(key=lambda kv: kv[1])
-    order = avail + missing
-    tools = [t for t, _ in order]
-    values = [v for _, v in order]
-
-    # Prepare figure: horizontal lollipop on log scale
-    n = len(tools)
-    fig_h = max(4.5, min(0.5 * n + 1.6, 9.5))
-    fig, ax = plt.subplots(figsize=(10.5, fig_h))
-
-    y = list(range(n))
-    y.reverse()  # top = rank 1 (fastest)
-    tools = list(reversed(tools))
-    values = list(reversed(values))
-
-    xmin_candidates = [v for v in values if v is not None and v > 0]
-    if not xmin_candidates:
-        return
-    xmin = min(xmin_candidates)
-    xmax = max(xmin_candidates)
-
-    # Draw stems and markers
-    for yi, (t, v) in enumerate(zip(tools, values)):
-        color = tool_colors.get(t)
-        if v is None:
-            # Place a subtle NA label to the left of the y-label row
-            ax.text(
-                xmax * 0.7 if xmax > 0 else 1.0,
-                y[yi],
-                "NA",
-                va="center",
-                ha="right",
-                fontsize=9,
-                color="#9ca3af",
-            )
-            continue
-        # Stem from xmin reference to value for visual scale perception
-        ax.hlines(y[yi], xmin, v, color="#e0e7ef", linewidth=2.0)
-        ax.plot(
-            v,
-            y[yi],
-            marker="o",
-            markersize=9,
-            markerfacecolor=color,
-            markeredgecolor="white",
-            markeredgewidth=1.2,
-        )
-        # Value label with humanized units
-        ax.text(
-            v,
-            y[yi],
-            f"  {_fmt_minutes(v)}",
-            va="center",
-            ha="left",
-            fontsize=10,
-            color="#374151",
-            fontweight="medium",
-        )
-
-    # Aesthetics and scales
-    ax.set_yticks(y)
-    ax.set_yticklabels(tools)
-    ax.set_xlabel("Wall time (minutes, log scale)")
-    ax.set_xscale("log")
-    # Pad a bit on both ends for labels
-    left = xmin / 1.6 if xmin > 0 else 0.1
-    right = xmax * 1.35 if xmax > 0 else 10
-    ax.set_xlim(left, right)
-    clean_axis(ax)
-    # Emphasize that lower is better
-    ax.set_title("Wall-clock Time by Tool (lower is better)", pad=10)
-    # Light grid on x only for readability
-    ax.grid(axis="x", linestyle="--", alpha=0.35)
-    # Remove legend; color already encodes tool
-    if ax.get_legend():
-        ax.get_legend().remove()
-
-    fig.tight_layout(pad=0.6)
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
-
-
-def plot_memory(summary, out_path: Path, tool_colors):
-    import matplotlib.pyplot as plt
-
-    def _fmt_gb(g):
-        try:
-            g = float(g)
-        except Exception:
-            return "NA"
-        if g <= 0:
-            return "NA"
-        if g < 1:
-            return f"{g*1024:.0f} MB"
-        if g < 10:
-            return f"{g:.1f} GB"
-        return f"{g:.0f} GB"
+    def _tick_label(value, _pos=None):
+        label = format_seconds(value)
+        return '' if label == 'NA' else label
 
     tools_all = order_tools(list(tool_colors.keys() or summary.keys()))
     if not tools_all:
         return
 
-    items = []
-    for t in tools_all:
-        v = summary.get(t, {}).get("max_gb")
-        if v is None or v <= 0:
-            items.append((t, None))
+    rows = []
+    missing_labels = []
+    for tool in tools_all:
+        metrics = summary.get(tool)
+        label = format_tool_label(tool)
+        base_entry = {
+            'tool': tool,
+            'label': label,
+            'value': None,
+            'stats': {},
+            'color': tool_colors.get(tool, '#4b5563'),
+            'sample_count': 0,
+        }
+        if not metrics:
+            missing_labels.append(label)
+            rows.append(base_entry)
+            continue
+        base_entry['sample_count'] = metrics.get('sample_count', 0)
+        value = metrics.get(metric_key)
+        stats = metrics.get(stats_key) or {}
+        if value is None or value <= 0:
+            missing_labels.append(label)
+            rows.append(base_entry)
+            continue
+        if metric_key.endswith('_min'):
+            value = float(value) * 60.0
         else:
-            items.append((t, float(v)))
+            value = float(value)
+        base_entry['value'] = value
+        base_entry['stats'] = stats
+        rows.append(base_entry)
 
-    avail = [(t, v) for t, v in items if v is not None]
-    missing = [(t, v) for t, v in items if v is None]
-    # Sort ascending (lower memory usage first)
-    avail.sort(key=lambda kv: kv[1])
-    order = avail + missing
-    tools = [t for t, _ in order]
-    values = [v for _, v in order]
-
-    n = len(tools)
-    fig_h = max(4.5, min(0.5 * n + 1.6, 9.5))
-    fig, ax = plt.subplots(figsize=(10.5, fig_h))
-
-    y = list(range(n))
-    y.reverse()
-    tools = list(reversed(tools))
-    values = list(reversed(values))
-
-    xmin_candidates = [v for v in values if v is not None and v > 0]
-    if not xmin_candidates:
+    if not rows:
         return
-    xmin = min(xmin_candidates)
-    xmax = max(xmin_candidates)
 
-    for yi, (t, v) in enumerate(zip(tools, values)):
-        color = tool_colors.get(t)
-        if v is None:
+    rows.sort(key=lambda r: r['value'] if r['value'] is not None else float('inf'))
+
+    n = len(rows)
+    fig_h = max(4.8, min(0.58 * n + 1.6, 10.5))
+    fig, ax = plt.subplots(figsize=(11.8, fig_h))
+    fig.patch.set_facecolor('#ffffff')
+    ax.set_facecolor('#fdfdff')
+
+    values = [r['value'] for r in rows if r['value'] is not None]
+    if values:
+        xmin = min(values)
+        xmax = max(values)
+        left = max(xmin / 1.8 if xmin > 0 else 0.5, 0.3)
+        right = xmax * 1.8 if xmax > 0 else 10.0
+    else:
+        left, right = 0.5, 10.0
+
+    y_positions = list(range(n))
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels([])
+    ax.tick_params(axis='y', length=0)
+    y_label_transform = ax.get_yaxis_transform()
+
+    for idx, row in enumerate(rows):
+        y = idx
+        base_color = row['color']
+        value = row['value']
+        if value is not None:
+            face = soften_color(base_color, 0.25)
+            ax.barh(
+                y,
+                value,
+                height=0.52,
+                color=face,
+                edgecolor=base_color,
+                linewidth=1.0,
+                zorder=3,
+            )
+        ax.text(
+            -0.03,
+            y,
+            row['label'],
+            transform=y_label_transform,
+            ha='right',
+            va='center',
+            fontsize=11,
+            color='#0f172a',
+            zorder=6,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.9, pad=0.2),
+        )
+        if value is None:
             ax.text(
-                xmax * 0.7 if xmax > 0 else 1.0,
-                y[yi],
-                "NA",
-                va="center",
-                ha="right",
-                fontsize=9,
-                color="#9ca3af",
+                left * 1.05,
+                y,
+                'not reported',
+                va='center',
+                ha='left',
+                fontsize=10,
+                color='#9ca3af',
             )
             continue
-        ax.hlines(y[yi], xmin, v, color="#e0e7ef", linewidth=2.0)
-        ax.plot(
-            v,
-            y[yi],
-            marker="o",
-            markersize=9,
-            markerfacecolor=color,
-            markeredgecolor="white",
-            markeredgewidth=1.2,
-        )
+        stats = row['stats']
+        if stats.get('p10') and stats.get('p90') and stats['p90'] > stats['p10']:
+            ax.hlines(
+                y,
+                stats['p10'],
+                stats['p90'],
+                color=base_color,
+                linewidth=3.2,
+                alpha=0.75,
+                zorder=4,
+            )
+        min_label_x = left * 1.12
+        text_x = max(value * 1.15, min_label_x)
+        text_x = min(text_x, right / 1.03)
         ax.text(
-            v,
-            y[yi],
-            f"  {_fmt_gb(v)}",
-            va="center",
-            ha="left",
-            fontsize=10,
-            color="#374151",
-            fontweight="medium",
+            text_x,
+            y,
+            format_seconds(value, include_long=True),
+            va='center',
+            ha='left',
+            fontsize=10.2,
+            color='#0f172a',
+            zorder=6,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.15),
+        ).set_path_effects([_pe.withStroke(linewidth=1.6, foreground='white', alpha=0.9)])
+
+    ax.set_xscale('log')
+    ax.set_xlim(left, right)
+    ax.grid(axis='x', linestyle='--', linewidth=0.6, alpha=0.4, color='#d5dceb')
+    ax.tick_params(axis='both', labelsize=10)
+    for spine in ('top', 'right'):
+        ax.spines[spine].set_visible(False)
+    ax.spines['left'].set_color('#d3d8e3')
+    ax.spines['bottom'].set_color('#d3d8e3')
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(FuncFormatter(_tick_label))
+    ax.set_xlabel(xlabel)
+    if show_notes:
+        notes = []
+        total_samples = runtime_meta.get('total_samples') or []
+        if total_samples:
+            notes.append(f"Benchmark covers {len(total_samples)} CAMI samples.")
+        sample_counts = sorted({r['sample_count'] for r in rows if r['sample_count']})
+        if sample_counts:
+            if len(sample_counts) == 1:
+                notes.append(f"Per-tool sample count: {sample_counts[0]}.")
+            else:
+                notes.append(f"Per-tool sample count range: {sample_counts[0]}–{sample_counts[-1]}.")
+        thread_counts = runtime_meta.get('thread_counts') or []
+        if thread_counts:
+            notes.append(f"Bench scripts invoked with --threads={', '.join(str(t) for t in thread_counts)}.")
+        else:
+            notes.append('Thread counts were not recorded in runtime metadata.')
+        notes.append('Hardware model and RAM details were not captured in RUN_0 metadata.')
+        notes.append('Bar colors follow the same tool palette across all runtime/memory plots.')
+        notes.append('Bars show mean runtime per CAMI sample; whiskers span the 10th–90th percentile across samples.')
+        if missing_labels:
+            notes.append('Not reported: ' + ', '.join(missing_labels))
+
+        fig.text(
+            0.01,
+            0.02,
+            "\n".join(notes),
+            ha='left',
+            fontsize=9,
+            color='#4b5563',
         )
 
-    ax.set_yticks(y)
-    ax.set_yticklabels(tools)
-    ax.set_xlabel("Peak RSS (GB, log scale)")
-    ax.set_xscale("log")
-    left = xmin / 1.6 if xmin > 0 else 0.1
-    right = xmax * 1.35 if xmax > 0 else 10
-    ax.set_xlim(left, right)
-    clean_axis(ax)
-    ax.set_title("Peak Memory by Tool (lower is better)", pad=10)
-    ax.grid(axis="x", linestyle="--", alpha=0.35)
-    if ax.get_legend():
-        ax.get_legend().remove()
-
-    fig.tight_layout(pad=0.6)
-    fig.savefig(out_path, bbox_inches="tight")
+    fig.subplots_adjust(left=0.36, right=0.96, top=0.85, bottom=0.2)
+    fig.savefig(out_path, bbox_inches='tight')
     plt.close(fig)
 
+
+def plot_memory(summary, out_path: Path, tool_colors, runtime_meta: dict | None = None, show_notes: bool = False):
+    import matplotlib.pyplot as plt
+    from matplotlib import patheffects as _pe
+    from matplotlib.ticker import FuncFormatter, LogLocator
+
+    runtime_meta = runtime_meta or {}
+
+    def _tick_label(value, _pos=None):
+        label = format_gib(value)
+        return '' if label == 'NA' else label
+
+    tools_all = order_tools(list(tool_colors.keys() or summary.keys()))
+    if not tools_all:
+        return
+
+    rows = []
+    missing_labels = []
+    for tool in tools_all:
+        metrics = summary.get(tool)
+        label = format_tool_label(tool)
+        base_entry = {
+            'tool': tool,
+            'label': label,
+            'value': None,
+            'stats': {},
+            'color': tool_colors.get(tool, '#4b5563'),
+        }
+        if not metrics:
+            missing_labels.append(label)
+            rows.append(base_entry)
+            continue
+        value = metrics.get('max_gb')
+        stats = metrics.get('mem_gb_stats') or {}
+        if value is None or value <= 0:
+            missing_labels.append(label)
+            rows.append(base_entry)
+            continue
+        base_entry['value'] = float(value)
+        base_entry['stats'] = stats
+        rows.append(base_entry)
+
+    if not rows:
+        return
+
+    rows.sort(key=lambda r: r['value'] if r['value'] is not None else float('inf'))
+    n = len(rows)
+    fig_h = max(4.8, min(0.58 * n + 1.6, 10.5))
+    fig, ax = plt.subplots(figsize=(11.5, fig_h))
+    fig.patch.set_facecolor('#ffffff')
+    ax.set_facecolor('#fdfdff')
+
+    values = [r['value'] for r in rows if r['value'] is not None]
+    if values:
+        xmin = min(values)
+        xmax = max(values)
+        left = max(xmin / 1.9 if xmin > 0 else 0.05, 0.02)
+        right = xmax * 1.85 if xmax > 0 else 10.0
+    else:
+        left, right = 0.05, 10.0
+
+    y_positions = list(range(n))
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels([])
+    ax.tick_params(axis='y', length=0)
+    y_label_transform = ax.get_yaxis_transform()
+
+    for idx, row in enumerate(rows):
+        y = idx
+        base_color = row['color']
+        value = row['value']
+        if value is not None:
+            face = soften_color(base_color, 0.28)
+            ax.barh(
+                y,
+                value,
+                height=0.52,
+                color=face,
+                edgecolor=base_color,
+                linewidth=1.0,
+                zorder=3,
+            )
+        ax.text(
+            -0.03,
+            y,
+            row['label'],
+            transform=y_label_transform,
+            ha='right',
+            va='center',
+            fontsize=11,
+            color='#0f172a',
+            zorder=6,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.9, pad=0.2),
+        )
+        if value is None:
+            ax.text(
+                left * 1.05,
+                y,
+                'not reported',
+                va='center',
+                ha='left',
+                fontsize=10,
+                color='#9ca3af',
+            )
+            continue
+        stats = row['stats']
+        if stats.get('p10') and stats.get('p90') and stats['p90'] > stats['p10']:
+            ax.hlines(
+                y,
+                stats['p10'],
+                stats['p90'],
+                color=base_color,
+                linewidth=3.0,
+                alpha=0.75,
+                zorder=4,
+            )
+        min_label_x = left * 1.12
+        text_x = max(value * 1.15, min_label_x)
+        text_x = min(text_x, right / 1.03)
+        ax.text(
+            text_x,
+            y,
+            format_gib(value),
+            va='center',
+            ha='left',
+            fontsize=10.2,
+            color='#0f172a',
+            zorder=6,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.15),
+        ).set_path_effects([_pe.withStroke(linewidth=1.6, foreground='white', alpha=0.9)])
+
+    ax.set_xscale('log')
+    ax.set_xlim(left, right)
+    ax.grid(axis='x', linestyle='--', linewidth=0.6, alpha=0.4, color='#d5dceb')
+    ax.tick_params(axis='both', labelsize=10)
+    for spine in ('top', 'right'):
+        ax.spines[spine].set_visible(False)
+    ax.spines['left'].set_color('#d3d8e3')
+    ax.spines['bottom'].set_color('#d3d8e3')
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_major_formatter(FuncFormatter(_tick_label))
+    ax.set_xlabel('Peak resident memory (GiB, log10 scale)')
+    # Titles removed per styling guidance; rely on axis labels and footnotes.
+
+    if show_notes:
+        notes = [
+            'Bars show the maximum RSS observed per CAMI sample; whiskers mark the 10th–90th percentile across samples.'
+        ]
+        notes.append('Bar colors follow the same tool palette across all runtime/memory plots.')
+        if runtime_meta.get('total_samples'):
+            notes.append(f"Benchmark covers {len(runtime_meta['total_samples'])} CAMI samples.")
+        thread_counts = runtime_meta.get('thread_counts') or []
+        if thread_counts:
+            notes.append(f"Benchmark threads per tool: {', '.join(str(t) for t in thread_counts)}.")
+        else:
+            notes.append('Thread counts were not recorded in runtime metadata.')
+        notes.append('Hardware model and RAM details were not captured in RUN_0 metadata.')
+        if missing_labels:
+            notes.append('Not reported: ' + ', '.join(missing_labels))
+
+        fig.text(0.01, 0.02, "\n".join(notes), ha='left', fontsize=9, color='#4b5563')
+
+    fig.subplots_adjust(left=0.36, right=0.96, top=0.85, bottom=0.2)
+    fig.savefig(out_path, bbox_inches='tight')
+    plt.close(fig)
+
+def plot_runtime_memory_panels(summary, out_path: Path, tool_colors, runtime_meta: dict | None = None, show_notes: bool = False):
+    import matplotlib.pyplot as plt
+    from matplotlib import patheffects as _pe
+    from matplotlib.ticker import FuncFormatter, LogLocator
+
+    runtime_meta = runtime_meta or {}
+    tools_all = order_tools(list(tool_colors.keys() or summary.keys()))
+    if not tools_all:
+        return
+
+    rows = []
+    missing_cpu = []
+    missing_mem = []
+    for tool in tools_all:
+        metrics = summary.get(tool)
+        label = format_tool_label(tool)
+        if not metrics:
+            missing_cpu.append(label)
+            missing_mem.append(label)
+            rows.append(
+                {
+                    'tool': tool,
+                    'label': label,
+                    'cpu': None,
+                    'cpu_stats': {},
+                    'mem': None,
+                    'mem_stats': {},
+                    'color': tool_colors.get(tool, '#4b5563'),
+                }
+            )
+            continue
+        cpu_val = metrics.get('cpu_min')
+        if cpu_val and cpu_val > 0:
+            cpu_val = float(cpu_val) * 60.0
+        else:
+            cpu_val = None
+            missing_cpu.append(label)
+        mem_val = metrics.get('max_gb')
+        if mem_val and mem_val > 0:
+            mem_val = float(mem_val)
+        else:
+            mem_val = None
+            missing_mem.append(label)
+        rows.append(
+            {
+                'tool': tool,
+                'label': label,
+                'cpu': cpu_val,
+                'cpu_stats': metrics.get('cpu_sec_stats') or {},
+                'mem': mem_val,
+                'mem_stats': metrics.get('mem_gb_stats') or {},
+                'color': tool_colors.get(tool, '#4b5563'),
+            }
+        )
+
+    if not rows:
+        return
+
+    rows.sort(key=lambda r: (float('inf') if r['cpu'] is None else r['cpu']))
+    n = len(rows)
+    fig_h = max(4.6, min(0.45 * n + 2.4, 9.5))
+    fig, (ax_cpu, ax_mem) = plt.subplots(1, 2, sharey=True, figsize=(13.5, fig_h))
+    fig.patch.set_facecolor('#ffffff')
+    for ax in (ax_cpu, ax_mem):
+        ax.set_facecolor('#fdfdff')
+
+    y_positions = list(range(n))
+    ax_cpu.set_yticks(y_positions)
+    ax_cpu.set_yticklabels([])
+    ax_cpu.tick_params(axis='y', length=0)
+    ax_mem.set_yticks(y_positions)
+    ax_mem.set_yticklabels([])
+    y_label_transform = ax_cpu.get_yaxis_transform()
+    for idx, row in enumerate(rows):
+        ax_cpu.text(
+            -0.06,
+            idx,
+            row['label'],
+            transform=y_label_transform,
+            ha='right',
+            va='center',
+            fontsize=10.5,
+            color='#0f172a',
+            zorder=6,
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.9, pad=0.2),
+        )
+
+    def _draw_axis(ax, values_key, stats_key, formatter, xlabel, left_pad, right_pad):
+        values = [r[values_key] for r in rows if r[values_key]]
+        if values:
+            xmin = min(values)
+            xmax = max(values)
+            left = max(xmin / left_pad if xmin > 0 else 0.05, 0.02)
+            right = xmax * right_pad if xmax > 0 else 10.0
+        else:
+            left, right = 0.5, 1.0
+        ax.set_xscale('log')
+        ax.set_xlim(left, right)
+        ax.grid(axis='x', linestyle='--', linewidth=0.55, alpha=0.35, color='#d5dceb')
+        ax.tick_params(axis='x', labelsize=9)
+        ax.xaxis.set_major_locator(LogLocator(base=10.0))
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos=None: formatter(val)))
+        for idx, row in enumerate(rows):
+            y = idx
+            value = row[values_key]
+            if not value:
+                ax.text(left * 1.05, y, 'not reported', va='center', ha='left', fontsize=9, color='#9ca3af')
+                continue
+            base_color = row['color']
+            face = soften_color(base_color, 0.25 if values_key == 'cpu' else 0.3)
+            ax.barh(y, value, height=0.45, color=face, edgecolor=base_color, linewidth=0.9, zorder=3)
+            stats = row[stats_key]
+            if stats.get('p10') and stats.get('p90') and stats['p90'] > stats['p10']:
+                ax.hlines(y, stats['p10'], stats['p90'], color=base_color, linewidth=2.4, alpha=0.75, zorder=4)
+            min_label_x = left * 1.12
+            text_x = max(value * 1.12, min_label_x)
+            text_x = min(text_x, right / 1.03)
+            align = 'left'
+            ax.text(
+                text_x,
+                y,
+                formatter(value, include_long=True) if values_key == 'cpu' else format_gib(value),
+                va='center',
+                ha=align,
+                fontsize=9.5,
+                color='#111827',
+                zorder=6,
+                bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.1),
+            ).set_path_effects([_pe.withStroke(linewidth=1.4, foreground='white', alpha=0.9)])
+        ax.set_xlabel(xlabel)
+        ax.spines['left'].set_color('#d3d8e3')
+        ax.spines['bottom'].set_color('#d3d8e3')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+    _draw_axis(
+        ax_cpu,
+        'cpu',
+        'cpu_stats',
+        lambda val, include_long=False: format_seconds(val) if not include_long else format_seconds(val, include_long=True),
+        'CPU time per sample (seconds, log10 scale)',
+        left_pad=1.8,
+        right_pad=1.7,
+    )
+    _draw_axis(
+        ax_mem,
+        'mem',
+        'mem_stats',
+        lambda val, include_long=False: format_gib(val),
+        'Peak memory per sample (GiB, log10 scale)',
+        left_pad=1.9,
+        right_pad=1.75,
+    )
+
+    ax_mem.tick_params(axis='y', left=False, labelleft=False, right=False)
+
+    if show_notes:
+        notes = []
+        if runtime_meta.get('total_samples'):
+            notes.append(f"Data aggregated across {len(runtime_meta['total_samples'])} CAMI samples.")
+        thread_counts = runtime_meta.get('thread_counts') or []
+        if thread_counts:
+            notes.append(f"Bench scripts ran with --threads={', '.join(str(t) for t in thread_counts)}.")
+        else:
+            notes.append('Thread counts were not recorded in runtime metadata.')
+        notes.append('Hardware model and RAM details were not captured in RUN_0 metadata.')
+        if missing_cpu:
+            notes.append('CPU not reported: ' + ', '.join(sorted(set(missing_cpu))))
+        if missing_mem:
+            notes.append('Memory not reported: ' + ', '.join(sorted(set(missing_mem))))
+
+        fig.text(0.01, 0.02, "\n".join(notes), ha='left', fontsize=9, color='#4b5563')
+    fig.subplots_adjust(left=0.36, right=0.98, top=0.9, bottom=0.2, wspace=0.18)
+    fig.savefig(out_path, bbox_inches='tight')
+    plt.close(fig)
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate plots from CAMI aggregate metrics.")
     ap.add_argument("--bench-root", default=str(Path(__file__).resolve().parent.parent), help="Bench directory root.")
-    ap.add_argument("--outdir", default="out", help="Relative output directory for figures.")
+    ap.add_argument("--outdir", default="out", help="Relative or absolute output directory for figures.")
+    ap.add_argument(
+        "--tables",
+        default=None,
+        help="Directory containing summary_per_tool_per_sample.tsv, runtime_memory.tsv, etc. "
+        "If not provided, defaults to the figure output directory (previous behaviour).",
+    )
     args = ap.parse_args()
 
     bench_root = Path(args.bench_root)
-    out_root = bench_root / args.outdir
+    out_root = Path(args.outdir)
+    if not out_root.is_absolute():
+        out_root = bench_root / out_root
     out_root.mkdir(parents=True, exist_ok=True)
 
-    summary_path = out_root / "summary_per_tool_per_sample.tsv"
-    contig_path = out_root / "contig_accuracy_per_tool.tsv"
+    tables_root = Path(args.tables) if args.tables else out_root
+    if not tables_root.is_absolute():
+        tables_root = bench_root / tables_root
+    if not tables_root.exists():
+        raise FileNotFoundError(f"Tables directory not found: {tables_root}")
+
+    summary_path = tables_root / "summary_per_tool_per_sample.tsv"
+    contig_path = tables_root / "contig_accuracy_per_tool.tsv"
 
     summary_rows = load_rows(summary_path)
     contig_rows = load_rows(contig_path)
-    runtime_rows = load_runtime_rows(out_root / "runtime_memory.tsv")
+    runtime_rows = load_runtime_rows(tables_root / "runtime_memory.tsv")
     if not summary_rows:
         print("[plot] No summary data available; skipping figure generation.")
         return
 
     ensure_matplotlib()
 
-    runtime_summary = summarise_runtime(runtime_rows, bench_root)
+    runtime_summary, runtime_meta = summarise_runtime(runtime_rows, bench_root)
+    show_notes = env_flag("HYMET_PLOTS_SHOW_NOTES", False)
     tools = sorted({row["tool"] for row in summary_rows})
     if contig_rows:
         tools = sorted(set(tools).union({row["tool"] for row in contig_rows}))
     if runtime_summary:
         tools = sorted(set(tools).union(runtime_summary.keys()))
-    tool_colors = get_tool_colors(tools)
+    tool_colors = get_tool_colors(order_tools(tools))
 
     plot_f1_by_rank(summary_rows, out_root / "fig_f1_by_rank.png", tool_colors)
     # Alternative, easier-to-compare line chart version
@@ -1352,10 +1810,45 @@ def main() -> None:
 
     if runtime_summary:
         # Keep legacy filename for continuity
-        plot_runtime(runtime_summary, out_root / "fig_cpu_time_by_tool.png", tool_colors)
+        plot_runtime(
+            runtime_summary,
+            out_root / "fig_cpu_time_by_tool.png",
+            tool_colors,
+            metric_key="cpu_min",
+            stats_key="cpu_sec_stats",
+            title="CPU time by tool",
+            xlabel="Runtime per CAMI sample (seconds, log10 scale)",
+            subtitle="User + system CPU seconds aggregated across CAMI samples - lower is better",
+            runtime_meta=runtime_meta,
+            show_notes=show_notes,
+        )
         # Also emit an explicit wall-time figure for clarity
-        plot_runtime(runtime_summary, out_root / "fig_wall_time_by_tool.png", tool_colors)
-        plot_memory(runtime_summary, out_root / "fig_peak_memory_by_tool.png", tool_colors)
+        plot_runtime(
+            runtime_summary,
+            out_root / "fig_wall_time_by_tool.png",
+            tool_colors,
+            metric_key="wall_min",
+            stats_key="wall_sec_stats",
+            title="Wall-clock time by tool",
+            xlabel="Wall time per CAMI sample (seconds, log10 scale)",
+            subtitle="Lower is better - aggregated across CAMI samples",
+            runtime_meta=runtime_meta,
+            show_notes=show_notes,
+        )
+        plot_memory(
+            runtime_summary,
+            out_root / "fig_peak_memory_by_tool.png",
+            tool_colors,
+            runtime_meta=runtime_meta,
+            show_notes=show_notes,
+        )
+        plot_runtime_memory_panels(
+            runtime_summary,
+            out_root / "fig_runtime_cpu_mem.png",
+            tool_colors,
+            runtime_meta=runtime_meta,
+            show_notes=show_notes,
+        )
 
 
 if __name__ == "__main__":

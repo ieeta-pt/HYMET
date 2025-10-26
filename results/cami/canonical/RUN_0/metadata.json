@@ -1,0 +1,27 @@
+{
+  "source_commit": "6415692fe37f588663127c800949e0d25a5c2e4c",
+  "source_commit_date": "2025-10-23T15:03:59Z",
+  "source_paths": {
+    "raw": "bench/out/cami_*",
+    "tables": "results/bench/*.tsv",
+    "figures": "results/bench/fig_*.png"
+  },
+  "tools": [
+    "basta",
+    "camitax",
+    "centrifuge",
+    "ganon2",
+    "hymet",
+    "kraken2",
+    "megapath_nano",
+    "metaphlan4",
+    "phabox",
+    "phyloflash",
+    "snakemags",
+    "sourmash_gather",
+    "squeezemeta",
+    "tama",
+    "viwrap"
+  ],
+  "notes": "Raw predictions are only available in repository history for viwrap; aggregated TSVs/figures cover the full tool roster."
+}

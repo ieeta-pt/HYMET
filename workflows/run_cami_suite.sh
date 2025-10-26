@@ -202,6 +202,9 @@ mkdir -p "${RAW_ROOT}" "${TABLES_ROOT}" "${FIGURES_ROOT}"
 
 commands_log=()
 primary_mirrored=0
+ran_contigs=0
+ran_reads=0
+declare -a EXEC_MODES=()
 if [[ "${DRY_RUN}" -eq 0 ]]; then
   for mode in "${MODE_LIST[@]}"; do
     mode_trim="${mode// /}"
@@ -209,10 +212,12 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
       contigs)
         tools="${CONTIG_TOOLS}"
         env_prefix=(env THREADS="${THREADS}")
+        ran_contigs=1
         ;;
       reads)
         tools="${READ_TOOLS}"
         env_prefix=(env THREADS="${THREADS}" READ_CHUNK_SIZE="${READ_CHUNK_SIZE}" READ_MIN_CHUNK="${READ_MIN_CHUNK}")
+        ran_reads=1
         ;;
       *)
         echo "[suite] unsupported mode: ${mode_trim}" >&2
@@ -225,14 +230,16 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     env_prefix+=(HYMET_BENCH_MODE="${mode_trim}")
     MODE_RAW="${RAW_ROOT}/${mode_trim}"
     mkdir -p "${MODE_RAW}"
-    cmd=("${HYMET_ROOT}/bin/hymet" bench --manifest "${MANIFEST}" --tools "${tools}")
+    EXEC_MODES+=("${mode_trim}")
+    cmd=("${HYMET_ROOT}/bin/hymet" bench --manifest "${MANIFEST}" --tools "${tools}" --no-publish)
     if [[ -n "${BENCH_EXTRA}" ]]; then
       # shellcheck disable=SC2206
       extra=( ${BENCH_EXTRA} )
       cmd+=("${extra[@]}")
     fi
     commands_log+=("mode=${mode_trim} tools=${tools} command=${env_prefix[*]} BENCH_OUT_ROOT=${MODE_RAW} ${cmd[*]}")
-    env BENCH_OUT_ROOT="${MODE_RAW}" "${env_prefix[@]}" "${cmd[@]}"
+    MODE_LOG="${MODE_RAW}/run.log"
+    env BENCH_OUT_ROOT="${MODE_RAW}" "${env_prefix[@]}" "${cmd[@]}" |& tee -a "${MODE_LOG}"
 
     mode_tables="${TABLES_ROOT}/${mode_trim}"
     mode_figs="${FIGURES_ROOT}/${mode_trim}"
@@ -267,6 +274,15 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
   done
 else
   commands_log+=("dry_run modes=${MODES} contig_tools=${CONTIG_TOOLS} read_tools=${READ_TOOLS}")
+  for mode in "${MODE_LIST[@]}"; do
+    mode_trim="${mode// /}"
+    EXEC_MODES+=("${mode_trim}")
+    if [[ "${mode_trim}" == "contigs" ]]; then
+      ran_contigs=1
+    elif [[ "${mode_trim}" == "reads" ]]; then
+      ran_reads=1
+    fi
+  done
 fi
 
 if [[ ${primary_mirrored} -eq 0 && "${DRY_RUN}" -eq 0 ]]; then
@@ -275,7 +291,7 @@ fi
 
 if [[ "${DRY_RUN}" -eq 0 ]]; then
   combined_tables="${TABLES_ROOT}/combined"
-  if [[ -d "${combined_tables}" ]]; then
+  if [[ "${#MODE_LIST[@]}" -gt 1 && -d "${combined_tables}" ]]; then
     mkdir -p "${FIGURES_ROOT}/combined"
     python3 "${SCRIPT_DIR}/plot/make_combined_figures.py" \
       --tables "${TABLES_ROOT}" \
@@ -285,6 +301,16 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
       || echo "[suite] WARNING: combined figure generation failed" >&2
   fi
 fi
+
+if ((${#EXEC_MODES[@]})); then
+  EXEC_MODES_STR="$(IFS=,; echo "${EXEC_MODES[*]}")"
+else
+  EXEC_MODES_STR="$(printf '%s' "${MODES}" | tr -d ' ')"
+fi
+META_CONTIG_TOOLS="${CONTIG_TOOLS}"
+[[ ${ran_contigs} -eq 0 ]] && META_CONTIG_TOOLS=""
+META_READ_TOOLS="${READ_TOOLS}"
+[[ ${ran_reads} -eq 0 ]] && META_READ_TOOLS=""
 
 if ((${#commands_log[@]})); then
   COMMANDS_TEXT=$(printf "%s\n" "${commands_log[@]}")
@@ -299,9 +325,9 @@ SUITE_NAME="${SUITE_NAME}" \
 MANIFEST="${MANIFEST}" \
 DRY_RUN="${DRY_RUN}" \
 THREADS="${THREADS}" \
-CONTIG_TOOLS="${CONTIG_TOOLS}" \
-READ_TOOLS="${READ_TOOLS}" \
-MODES="${MODES}" \
+CONTIG_TOOLS="${META_CONTIG_TOOLS}" \
+READ_TOOLS="${META_READ_TOOLS}" \
+MODES="${EXEC_MODES_STR}" \
 PRIMARY_MODE="${PRIMARY_MODE}" \
 COMMANDS_LOG="${COMMANDS_TEXT}" \
 python3 - <<'PY'
