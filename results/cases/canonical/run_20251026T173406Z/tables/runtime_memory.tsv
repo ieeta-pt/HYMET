@@ -1,0 +1,3 @@
+sample	tool	stage	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb
+zymo_mc	hymet	run	253.870	274.820	30.740	17.419	1.101	0.340
+gut_case	hymet	run	257.540	309.070	33.330	17.405	4.494	0.550

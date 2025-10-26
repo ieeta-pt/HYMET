@@ -1,0 +1,11 @@
+sample	metric	value
+gut_case	top_superkingdom	Bacteria (99.846608)
+gut_case	top_phylum	Bacteria|Bacillota (82.092429)
+gut_case	top_class	Bacteria|Bacillota|Clostridia (74.536873)
+gut_case	top_order	Bacteria|Bacillota|Clostridia|Lachnospirales (36.680433)
+gut_case	top_family	Bacteria|Bacillota|Clostridia|Lachnospirales|Lachnospiraceae (36.680433)
+gut_case	top_order	Bacteria|Bacillota|Clostridia|Eubacteriales (20.865290)
+gut_case	top_species	Bacteria|Bacillota|Clostridia||||Clostridia bacterium UC5.1-1D4 (12.440511)
+gut_case	top_order	Bacteria|Bacillota|Clostridia| (12.440511)
+gut_case	top_genus	Bacteria|Bacillota|Clostridia||| (12.440511)
+gut_case	top_family	Bacteria|Bacillota|Clostridia|| (12.440511)
