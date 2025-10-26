@@ -80,11 +80,28 @@ Outputs:
 
 ### 2.3 Visual Summary
 
-![HYMET runtime and memory](../results/cases/canonical/run_20251018T220513Z/figures/fig_case_runtime.png)
+![HYMET runtime and memory](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_runtime.png)
 
-![Top taxa per sample](../results/cases/canonical/run_20251018T220513Z/figures/fig_case_top_taxa_panels.png)
+![Top taxa per sample](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_top_taxa_panels.png)
 
-![Top taxon overlap heatmap](../results/cases/canonical/run_20251018T220513Z/figures/fig_case_top_taxa_heatmap.png)
+![Top taxon overlap heatmap](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_top_taxa_heatmap.png)
+
+### 2.4 Automation & figure regeneration
+
+Run every bundled suite (canonical + gut + zymo) with a single command:
+
+```bash
+case/run_cases_full.sh --threads 16          # accepts --suite to limit the run, --dry-run to preview
+```
+
+The script publishes into `results/cases/<suite>/run_<timestamp>/`, executes `case/plot_case.py` for the per-sample figures, and refreshes the shared runtime/memory charts with:
+
+```bash
+python bench/plot/make_figures.py \
+  --bench-root bench \
+  --tables results/cases/<suite>/run_<timestamp>/tables \
+  --outdir results/cases/<suite>/run_<timestamp>/figures
+```
 
 ## 3. Database Ablation
 

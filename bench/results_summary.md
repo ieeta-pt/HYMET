@@ -38,16 +38,24 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
 ./run_all_cami.sh
 ```
 
-- Outputs land in `bench/out/<sample>/<tool>/`. Aggregated metrics are written to:
-  - `bench/out/summary_per_tool_per_sample.tsv`
-  - `bench/out/leaderboard_by_rank.tsv`
-  - `bench/out/contig_accuracy_per_tool.tsv`
-  - `bench/out/runtime_memory.tsv`
+- Outputs land in `bench/out/<sample>/<tool>/` during the run and are mirrored automatically to `results/<scenario>/<suite>/run_<timestamp>/raw/`.
+- Aggregated metrics are written to `bench/out/*.tsv` **and** copied into `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/`:
+  - `summary_per_tool_per_sample.tsv`
+  - `leaderboard_by_rank.tsv`
+  - `contig_accuracy_per_tool.tsv`
+  - `runtime_memory.tsv`
 - Figures: `bench/out/fig_accuracy_by_rank_lines.png`, `bench/out/fig_f1_by_rank_lines.png`, `bench/out/fig_l1_braycurtis_lines.png`, `bench/out/fig_per_sample_f1_stack.png`, `bench/out/fig_cpu_time_by_tool.png`, `bench/out/fig_peak_memory_by_tool.png` (mirrored under `results/cami/contig_full/run_20251024T170927Z/figures/` alongside `fig_contig_accuracy_heatmap.png` for repo-level access)
 - Cache keys are logged for each HYMET invocation; omit `FORCE_DOWNLOAD` to reuse them. Remove old entries in `data/downloaded_genomes/cache_bench/` when disk space gets tight.
 - MetaPhlAn 4 retries automatically with `--split_reads` and ≤4 threads if the primary run fails, which eliminates the previous Bowtie2 broken pipe. Use `METAPHLAN_OPTS`/`METAPHLAN_THREADS` to override as needed.
 
-`run_all_cami.sh` triggers `aggregate_metrics.py` and `plot/make_figures.py` automatically at the end of a successful run, so no extra commands are required to refresh the TSVs and figures listed above.
+`run_all_cami.sh` triggers `aggregate_metrics.py` and `plot/make_figures.py` automatically at the end of a successful run, so no extra commands are required to refresh the TSVs and figures listed above. To re-render plots later (or on a different machine), point the helper at the published tables:
+
+```bash
+python plot/make_figures.py \
+  --bench-root bench \
+  --tables results/<scenario>/<suite>/run_<timestamp>/tables/<mode> \
+  --outdir results/<scenario>/<suite>/run_<timestamp>/figures/<mode>
+```
 
 ## 3. Latest results (aggregated across CAMI samples)
 
@@ -128,19 +136,19 @@ Runtime and peak memory (means across `run` stages):
 - Memory spans sub-GB (ganon2) to ~29 GB (SnakeMAGs). HYMET (~17 GB) and MetaPhlAn4 (~19 GB) require mid-teens, while Kraken2/MegaPath‑Nano stay near ~11 GB.
 
 Tables (CSV/TSV):
-- Per‑sample, per‑rank metrics: `bench/out/summary_per_tool_per_sample.tsv`
-- Rank‑wise leaderboard (means): `bench/out/leaderboard_by_rank.tsv`
-- Contig accuracy per rank/tool: `bench/out/contig_accuracy_per_tool.tsv`
-- Runtime/memory per stage: `bench/out/runtime_memory.tsv`
+- Per‑sample, per‑rank metrics: `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/summary_per_tool_per_sample.tsv`
+- Rank‑wise leaderboard (means): `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/leaderboard_by_rank.tsv`
+- Contig accuracy per rank/tool: `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/contig_accuracy_per_tool.tsv`
+- Runtime/memory per stage: `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/runtime_memory.tsv`
 
-This configuration used the following HYMET parameters:
+This configuration used the following HYMET parameters (see `results/cami/contig_full/run_<timestamp>/metadata.json`):
 
 ```
 CAND_MAX=200 SPECIES_DEDUP=1 HYMET_REL_COV_THRESHOLD=0.2 HYMET_ABS_COV_THRESHOLD=0.02 \
 HYMET_TAXID_MIN_SUPPORT=1 HYMET_TAXID_MIN_WEIGHT=0
 ```
 
-Candidate logs (`out/<sample>/hymet/logs/candidate_limit.log`) confirm the pruning: `cami_sample_0` keeps 200 of 37,556 Mash hits, while smaller panels such as `cami_i_lc` retain their full 147 deduplicated candidates. Run metadata and resource usage live in `bench/out/runtime_memory.tsv`.
+Candidate logs (`results/<scenario>/<suite>/run_<timestamp>/raw/contigs/<sample>/hymet/logs/candidate_limit.log`) confirm the pruning: `cami_sample_0` keeps 200 of 37,556 Mash hits, while smaller panels such as `cami_i_lc` retain their full 147 deduplicated candidates. Run metadata and resource usage live in the published `tables/<mode>/runtime_memory.tsv`.
 
 ### Figure interpretations
 See the discussion sections following each figure above.

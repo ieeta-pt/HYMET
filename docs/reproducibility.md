@@ -36,7 +36,7 @@ This playbook expands the minimal quick-start instructions in the README into a 
 | Repository commit | `git rev-parse HEAD` | Record in lab notebook |
 | HYMET environment file | `environment.lock.yml` | Keep copy with submission |
 | Sketch checksums | `data/sketch_checksums.tsv` | Compare with Zenodo |
-| Bench aggregate hash | `sha256sum bench/out/summary_per_tool_per_sample.tsv` | Match Zenodo (canonical release only) |
+| Bench aggregate hash | `sha256sum results/cami/canonical/run_<timestamp>/tables/contigs/summary_per_tool_per_sample.tsv` | Match Zenodo (canonical release only) |
 | Case runtime log hash | `sha256sum results/cases/<suite>/run_<timestamp>/tables/runtime_memory.tsv` | Match Zenodo |
 
 Use this table as a cover sheet for the reproducibility package.
@@ -50,7 +50,7 @@ git clone https://github.com/ieeta-pt/HYMET.git
 cd HYMET
 ```
 
-Optional: pin to the exact revision referenced in `bench/out/*/metadata.json`:
+Optional: pin to the exact revision referenced in `results/cami/canonical/run_<timestamp>/raw/contigs/cami_sample_0/hymet/metadata.json`:
 
 ```bash
 git checkout <commit-hash>
@@ -181,7 +181,7 @@ workflows/run_cami_suite.sh \
   --contig-tools hymet,kraken2,centrifuge,ganon2,metaphlan4,sourmash_gather,megapath_nano,tama,basta,phabox,phyloflash,viwrap,squeezemeta
 ```
 
-The runner sets `BENCH_OUT_ROOT` per mode, snapshots `bench/out/<sample>/<tool>/` into `raw/`, and copies the derived TSVs/figures into `tables/` and `figures/`. No manual `cp` steps are required.
+The runner sets `BENCH_OUT_ROOT` per mode, stages every tool under `results/cami/canonical/run_<timestamp>/raw/<mode>/<sample>/<tool>/`, and copies the derived TSVs/figures into `tables/` and `figures/`. No manual `cp` steps are required.
 
 If you invoke the low-level harness directly (`bin/hymet bench` or `bench/run_all_cami.sh`), publish the results afterwards so they follow the same hierarchy:
 
@@ -190,7 +190,14 @@ bench/run_all_cami.sh --manifest bench/cami_manifest.tsv --tools hymet,kraken2,c
 bench/publish_results.sh --scenario cami --suite canonical
 ```
 
-`publish_results.sh` snapshots `bench/out/` into `results/cami/canonical/run_<timestamp>/raw`, copies aggregated tables/figures, and records `metadata.json`.
+`publish_results.sh` snapshots any existing `bench/out/` scratch data into `results/cami/canonical/run_<timestamp>/raw`, copies aggregated tables/figures, and records `metadata.json`. To refresh figures later, run:
+
+```bash
+python bench/plot/make_figures.py \
+  --bench-root bench \
+  --tables results/cami/canonical/run_<timestamp>/tables/<mode> \
+  --outdir results/cami/canonical/run_<timestamp>/figures/<mode>
+```
 
 ### 8.3 Partial reruns / reviewer suites
 
@@ -206,7 +213,7 @@ workflows/run_cami_suite.sh \
 ```
 
 Each invocation creates `results/<scenario>/<suite>/run_<timestamp>/` with its own `raw/`, `tables/`, `figures/`, and `metadata.json`. Multiple runs can coexist simply by virtue of their timestamps. Folder anatomy:
-- `raw/<mode>/<sample>/<tool>/` – untouched snapshots of `bench/out/<sample>/<tool>/`.
+- `raw/<mode>/<sample>/<tool>/` – direct snapshots from the workflow runner (equivalent to the transient `bench/out/` layout, but stored permanently per run).
 - `tables/` – per-mode TSVs (summary, leaderboard, runtime, contig accuracy, manifest snapshot). When multiple modes are used, subdirectories (`tables/contigs/`, `tables/reads/`, …) keep them separated.
 - `figures/` – regenerated `fig_*.png` artefacts, likewise grouped per mode when applicable.
 - `metadata.json` – manifest path, commit hash, tool roster, command log, thread counts, and cache hints.
@@ -329,7 +336,7 @@ sha256sum "$SUITE"/figures/fig_f1_by_rank_lines.png
 Each HYMET run writes `metadata.json` noting commit hash, sketch checksums, tool versions, and cache key.
 
 ```bash
-jq '.' bench/out/cami_i_lc/hymet/metadata.json
+jq '.' results/cami/canonical/run_<timestamp>/raw/contigs/cami_i_lc/hymet/metadata.json
 ```
 
 Ensure `hymet_commit` matches the checked-out revision and that the sketch SHA256 values agree with Zenodo.

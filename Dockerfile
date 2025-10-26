@@ -3,9 +3,16 @@ FROM continuumio/miniconda3:latest
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
+    bc \
+    ca-certificates \
     perl \
+    unzip \
     wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Provide micromamba for runtime auto-installs used by HYMET scripts
+RUN wget -qO /usr/local/bin/micromamba https://micromamba.snakepit.net/api/micromamba/linux-64/latest \
+    && chmod +x /usr/local/bin/micromamba
 
 # Copiar o arquivo environment.yml para o contêiner
 COPY environment.yml /tmp/environment.yml

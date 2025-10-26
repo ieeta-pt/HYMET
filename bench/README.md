@@ -111,7 +111,7 @@ micromamba env export -n hymet-benchmark > environment.lock.yml
 
 - Prefer running with the locked environment (`environment.lock.yml`) for exact versions.
 - Database locations are passed via environment variables; avoid hard‑coding paths in scripts.
-- The harness writes all per‑run artefacts under `bench/out/` and regenerates aggregate tables and figures deterministically from those artefacts.
+- When run via `workflows/run_cami_suite.sh` or `publish_results.sh`, the harness writes per-run artefacts directly under `results/<scenario>/<suite>/run_<timestamp>/raw/` and regenerates aggregate tables/figures into the sibling `tables/` and `figures/` directories. `bench/out/` is only used as a scratch workspace when you set `BENCH_OUT_ROOT` manually.
 - Recovery utilities that attempted to “rebuild” or “restore” runtime logs from previous commits have been removed to keep results provenance clear. If a runtime table is missing, re‑run the affected tool or stage instead of reconstructing from history.
 
 ## 5. Database Builders & External Tool Setup
@@ -532,7 +532,16 @@ Useful after manual tweaks to converter scripts:
 - `fig_peak_memory_by_tool.png`
 - `fig_contig_accuracy_heatmap.png`
 
-`run_all_cami.sh` now invokes `publish_results.sh`, so aggregate tables and figures are refreshed under `bench/out/` **and** mirrored into `results/<scenario>/<suite>/run_<timestamp>/` (defaults to `results/cami/canonical/`).
+`run_all_cami.sh` now invokes `publish_results.sh`, so aggregate tables and figures are refreshed under the working `bench/out/` folder **and** mirrored into `results/<scenario>/<suite>/run_<timestamp>/` (defaults to `results/cami/canonical/`). Downstream consumers should always read from the `results/.../tables/` and `results/.../figures/` directories to avoid mixing runs.
+
+To regenerate figures for any published run, point the helper at that run’s tables directory:
+
+```bash
+python plot/make_figures.py \
+  --bench-root bench \
+  --tables results/<scenario>/<suite>/run_<timestamp>/tables/<mode> \
+  --outdir results/<scenario>/<suite>/run_<timestamp>/figures/<mode>
+```
 
 ## 8. Resource Tips & Troubleshooting
 
@@ -549,8 +558,8 @@ Useful after manual tweaks to converter scripts:
 3. Build databases (`db/build_*.sh`).
 4. Ensure MetaPhlAn DB exists under `bench/db/metaphlan`.
 5. Run benchmark (see §6.2).
-6. Regenerate aggregates/plots if needed.
-7. Review outputs in `bench/out/`.
+6. Regenerate aggregates/plots if needed (use `publish_results.sh` or run `plot/make_figures.py` with `--tables results/.../tables/<mode>`).
+7. Review outputs in `results/<scenario>/<suite>/run_<timestamp>/` (raw, tables, figures, metadata). Reserve `bench/out/` for scratch/debug runs only.
 
 ## 10. Extending the Harness
 

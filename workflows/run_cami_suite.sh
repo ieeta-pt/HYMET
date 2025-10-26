@@ -103,6 +103,46 @@ append_runtime_aggregate(){
   fi
 }
 
+append_table_with_mode(){
+  local src="$1"
+  local dst="$2"
+  local mode="$3"
+  [[ -f "${src}" ]] || return 0
+  python3 - "$src" "$dst" "$mode" <<'PY'
+import csv, sys, pathlib
+src_path, dst_path, mode = sys.argv[1:4]
+src = pathlib.Path(src_path)
+dst = pathlib.Path(dst_path)
+if not src.is_file():
+    raise SystemExit(0)
+with src.open(newline="") as fh:
+    reader = csv.DictReader(fh, delimiter="\t")
+    rows = list(reader)
+    fieldnames = reader.fieldnames or []
+if not rows:
+    raise SystemExit(0)
+if "mode" not in fieldnames:
+    if "tool" in fieldnames:
+        idx = fieldnames.index("tool") + 1
+    else:
+        idx = len(fieldnames)
+    fieldnames = fieldnames[:idx] + ["mode"] + fieldnames[idx:]
+    for row in rows:
+        row["mode"] = mode
+else:
+    for row in rows:
+        row["mode"] = row.get("mode") or mode
+dst.parent.mkdir(parents=True, exist_ok=True)
+write_header = not dst.exists()
+with dst.open("a", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+    if write_header:
+        writer.writeheader()
+    for row in rows:
+        writer.writerow({key: row.get(key, "") for key in fieldnames})
+PY
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --manifest) MANIFEST="$2"; shift 2;;
@@ -199,7 +239,14 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     mkdir -p "${mode_tables}" "${mode_figs}"
     for table in summary_per_tool_per_sample.tsv leaderboard_by_rank.tsv contig_accuracy_per_tool.tsv manifest.snapshot.tsv; do
       src="${MODE_RAW}/${table}"
-      [[ -f "${src}" ]] && cp "${src}" "${mode_tables}/"
+      if [[ -f "${src}" ]]; then
+        cp "${src}" "${mode_tables}/"
+        case "${table}" in
+          summary_per_tool_per_sample.tsv|leaderboard_by_rank.tsv|contig_accuracy_per_tool.tsv)
+            append_table_with_mode "${src}" "${TABLES_ROOT}/combined/${table}" "${mode_trim}"
+            ;;
+        esac
+      fi
     done
     cp "${MODE_RAW}/"fig_*.png "${mode_figs}/" 2>/dev/null || true
 
@@ -224,6 +271,19 @@ fi
 
 if [[ ${primary_mirrored} -eq 0 && "${DRY_RUN}" -eq 0 ]]; then
   echo "[suite] WARNING: primary mode '${PRIMARY_MODE}' not found; top-level figures/tables were not populated" >&2
+fi
+
+if [[ "${DRY_RUN}" -eq 0 ]]; then
+  combined_tables="${TABLES_ROOT}/combined"
+  if [[ -d "${combined_tables}" ]]; then
+    mkdir -p "${FIGURES_ROOT}/combined"
+    python3 "${SCRIPT_DIR}/plot/make_combined_figures.py" \
+      --tables "${TABLES_ROOT}" \
+      --outdir "${FIGURES_ROOT}/combined" \
+      --suite "${SUITE_NAME}" \
+      --run "${RUN_DIR}" \
+      || echo "[suite] WARNING: combined figure generation failed" >&2
+  fi
 fi
 
 if ((${#commands_log[@]})); then

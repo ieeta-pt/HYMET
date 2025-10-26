@@ -256,8 +256,8 @@ done < "${MANIFEST}"
 
 if [[ -s "${RUNTIME_TSV}" ]]; then
   log "Aggregating metrics"
-  python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --outdir "out"
-  python3 "${SCRIPT_DIR}/plot/make_figures.py" --bench-root "${SCRIPT_DIR}" --outdir "out" || log "WARNING: plotting step failed"
+  python3 "${SCRIPT_DIR}/aggregate_metrics.py" --bench-root "${SCRIPT_DIR}" --outdir "${OUT_ROOT}"
+  python3 "${SCRIPT_DIR}/plot/make_figures.py" --bench-root "${SCRIPT_DIR}" --outdir "${OUT_ROOT}" || log "WARNING: plotting step failed"
 
   if [[ ${PUBLISH_RESULTS} -eq 1 ]]; then
     if [[ -n "${SUITE_PATH}" ]]; then

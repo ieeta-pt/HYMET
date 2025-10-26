@@ -17,7 +17,7 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 - **Deployment options** – Install via Bioconda, Docker/Singularity images, or a source checkout with the supplied environment file.
 
 <p align="center">
-  <img src="docs/assets/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank" width="60%">
+  <img src="results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank (RUN_0)" width="60%">
 </p>
 
 <!-- Detailed benchmark figures and discussion live in bench/results_summary.md -->
@@ -44,6 +44,8 @@ your/env/bin/hymet run   --contigs /path/to/sample.fna   --out out/sample   --th
 your/env/bin/hymet bench   --manifest bench/cami_manifest.tsv   --tools hymet,kraken2,centrifuge,ganon2,sourmash_gather,metaphlan4   --threads 16
 
 # Case-study bundle (MGnify gut + Zymo mock community)
+./case/run_cases_full.sh   --threads 16      # canonical + gut + zymo suites; add --suite to limit the run
+# or run a single manifest via the CLI:
 your/env/bin/hymet case   --manifest case/manifest_zymo.tsv   --threads 8
 
 # Reference ablation experiment
@@ -122,7 +124,7 @@ For throughput runs, iterate over samples in a simple shell loop or a workflow m
 - Reviewer suites: `results/cami/<suite>/run_<timestamp>/` (one folder per run). Raw per-tool outputs are grouped by mode; derived tables/figures live alongside metadata for immediate inspection.
 - Case studies and ablations follow the same pattern under `results/cases/…/run_<timestamp>/` and `results/ablation/…/run_<timestamp>/`.
 - Bench runs no longer write to `bench/out/` (all artefacts land in `results/<scenario>/<suite>/run_<timestamp>/…`). Case workflows follow the same convention: `case/run_case.sh` (and `bin/hymet case`) publish into `results/cases/<suite>/run_<timestamp>/…` unless you override the destination with `--out`.
-- Use `python bench/plot/make_figures.py --bench-root <raw_dir> --outdir <target>` to regenerate figures for any run.
+- Use `python bench/plot/make_figures.py --bench-root bench --tables <run>/tables --outdir <run>/figures` to regenerate figures for any run (keeps data and plots in sync).
 
 ## Documentation & Reporting
 

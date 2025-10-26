@@ -43,6 +43,8 @@ case/
    THREADS=16 ./run_case.sh --sanity-metaphlan
    # or explicitly pin the suite:
    THREADS=16 ./run_case.sh --suite reviewer_panel --scenario cases
+   # run every bundled suite (canonical + gut + zymo) end-to-end:
+   ./run_cases_full.sh --threads 16
    ```
 
    By default every invocation publishes into `results/cases/<suite>/run_<timestamp>/`:
@@ -84,5 +86,6 @@ case/
 - Ablation temporarily replaces `HYMET/data/downloaded_genomes/combined_genomes.fasta`; the `run_ablation.sh` script backs up and restores the original file automatically.
 - All heavy artefacts are ignored by git (`out/`, `ablation/`, `tmp/`).
 - `run_ablation.sh` forwards the `--seed` parameter to `ablate_db.py` (default 1337) so sequence removal is reproducible.
+- `run_cases_full.sh` can execute the canonical, gut, and zymo suites (or a subset via `--suite`) and automatically re-run both `case/plot_case.py` and `bench/plot/make_figures.py --tables results/.../tables` for each published run.
 
 These outputs support documenting real-data performance and robustness under incomplete reference databases.

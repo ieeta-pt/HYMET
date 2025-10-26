@@ -20,3 +20,12 @@ workflows/run_cami_suite.sh \
   --suite contig_full
 ```
 Each invocation creates `results/<scenario>/<suite>/run_<timestamp>/` with subfolders for raw outputs, tables, figures, and metadata. The runner sets `BENCH_OUT_ROOT` automatically, so the core harness never writes into `bench/out/`. See `docs/cami_suite_protocol.md` for the full reproducibility checklist and packaging instructions.
+
+To regenerate the shared figures for any run produced by these workflows, point the plotting helper at that run’s tables directory:
+
+```bash
+python bench/plot/make_figures.py \
+  --bench-root bench \
+  --tables results/<scenario>/<suite>/run_<timestamp>/tables \
+  --outdir results/<scenario>/<suite>/run_<timestamp>/figures
+```
