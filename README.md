@@ -17,11 +17,8 @@ HYMET performs contig-level metagenomic classification by combining Mash-based c
 - **Deployment options** – Install via Bioconda, Docker/Singularity images, or a source checkout with the supplied environment file.
 
 <p align="center">
-  <img src="./results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank (RUN_0)" width="60%">
-</p>
-
-<p align="center">
-  <img src="./results/cases/canonical/run_20251026T173406Z/figures/fig_case_runtime.png" alt="HYMET case-study runtime summary (canonical suite)" width="60%">
+  <img src="./results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png" alt="HYMET F1 by taxonomic rank (RUN_0)" width="51%">
+<img src="./results/cases/canonical/run_20251026T173406Z/figures/fig_case_top_taxa_panels.png" alt="HYMET case-study runtime summary (canonical suite)" width="46%">
 </p>
 
 <!-- Detailed benchmark figures and discussion live in bench/results_summary.md -->
