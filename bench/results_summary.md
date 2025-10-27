@@ -132,8 +132,7 @@ Runtime and peak memory (means across `run` stages):
 
 ![CPU time by tool](../results/cami/canonical/RUN_0/figures/fig_cpu_time_by_tool.png)
 
-- Bars show user+system CPU time for the `run` stage.
-- ganon2 and sourmash gather (~0.13–0.17 CPU min) are the lightest. HYMET (~1.96 CPU min) and TAMA (~0.56 CPU min) sit in the mid-range. CAMITAX (~0.20 CPU min) is fast, while MetaPhlAn4 (~4.6 CPU min), SnakeMAGs (~17.4 CPU min), and ViWrap (~105 CPU min) are the heaviest.
+- Bars show user+system CPU time for the `run` stage. ganon2 and sourmash gather (~0.13–0.17 CPU min) are the lightest. HYMET (~1.96 CPU min) and TAMA (~0.56 CPU min) sit in the mid-range. CAMITAX (~0.20 CPU min) is fast, while MetaPhlAn4 (~4.6 CPU min), SnakeMAGs (~17.4 CPU min), and ViWrap (~105 CPU min) are the heaviest.
 
 ### Peak memory by tool
 

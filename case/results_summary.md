@@ -113,7 +113,8 @@ Current run (with default 5 000-genome reference) produced no removals; the ta
 ### Recommended reproduction (curated Zymo panel)
 
 1. **Reuse the curated reference**  
-   ```bash
+
+ ```bash
    CACHE_DIR=data/downloaded_genomes/cache_case/<sha1_from_cache_log>
    gunzip -c HYMET/case/truth/zymo_refs/zymo_refs.fna.gz > HYMET/case/truth/zymo_refs/zymo_refs.fna
    cp HYMET/case/truth/zymo_refs/zymo_refs.fna "${CACHE_DIR}/combined_genomes.fasta"
@@ -122,7 +123,8 @@ Current run (with default 5 000-genome reference) produced no removals; the ta
    ```
 
 2. **Run ablation on the curated FASTA**  
-   ```bash
+
+```bash
   cd HYMET
   bin/hymet ablation \
     --sample zymo_mc \
@@ -132,6 +134,7 @@ Current run (with default 5 000-genome reference) produced no removals; the ta
     --seqmap case/truth/zymo_refs/seqid2taxid.tsv \
     --threads 4
    ```
+
 
    Outputs after the curated-panel run (default suite `results/ablation/canonical/run_<timestamp>/`):
    - `raw/ablation_summary.tsv` – species/genus/family retention stays at 100 % for levels 0, 0.5, and 1.0 (1044 contigs classified).
