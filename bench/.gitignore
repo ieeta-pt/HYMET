@@ -1,0 +1,13 @@
+out/
+data/
+db/
+logs/
+tmp/
+__pycache__/
+*.png
+*.log
+*.stamp
+refsets/
+syslog
+bin/diamond
+cami_*/

@@ -1,0 +1,64 @@
+{
+  "samples": [
+    {
+      "name": "gut_case",
+      "runtime": {
+        "wall_seconds": 258.32,
+        "cpu_seconds": 346.86,
+        "rss_gb": 17.408
+      },
+      "top_taxa": [
+        {
+          "rank": "superkingdom",
+          "label": "Bacteria",
+          "pct": 99.846608
+        },
+        {
+          "rank": "phylum",
+          "label": "Bacteria|Bacillota",
+          "pct": 82.092429
+        },
+        {
+          "rank": "class",
+          "label": "Bacteria|Bacillota|Clostridia",
+          "pct": 74.536873
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|Lachnospirales",
+          "pct": 36.680433
+        },
+        {
+          "rank": "family",
+          "label": "Bacteria|Bacillota|Clostridia|Lachnospirales|Lachnospiraceae",
+          "pct": 36.680433
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|Eubacteriales",
+          "pct": 20.86529
+        },
+        {
+          "rank": "species",
+          "label": "Bacteria|Bacillota|Clostridia||||Clostridia bacterium UC5.1-1D4",
+          "pct": 12.440511
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|",
+          "pct": 12.440511
+        },
+        {
+          "rank": "genus",
+          "label": "Bacteria|Bacillota|Clostridia|||",
+          "pct": 12.440511
+        },
+        {
+          "rank": "family",
+          "label": "Bacteria|Bacillota|Clostridia||",
+          "pct": 12.440511
+        }
+      ]
+    }
+  ]
+}

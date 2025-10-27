@@ -1,0 +1,11 @@
+species_label	species_name	taxid	synonyms
+bacillus_subtilis	Bacillus subtilis	1423	
+escherichia_coli	Escherichia coli	562	
+salmonella_enterica	Salmonella enterica	28901	salmonella enterica subsp. enterica
+listeria_monocytogenes	Listeria monocytogenes	1639	
+staphylococcus_aureus	Staphylococcus aureus	1280	
+enterococcus_faecalis	Enterococcus faecalis	1351	
+pseudomonas_aeruginosa	Pseudomonas aeruginosa	287	
+limosilactobacillus_fermentum	Limosilactobacillus fermentum	1613	Lactobacillus fermentum
+saccharomyces_cerevisiae	Saccharomyces cerevisiae	4932	
+cryptococcus_neoformans	Cryptococcus neoformans	5207	

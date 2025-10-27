@@ -1,0 +1,48 @@
+#CAMI Submission for Taxonomic Profiling
+@Version:0.9.1 @Ranks:superkingdom|phylum|class|order|family|genus|species @SampleID:zymo_mc_truth
+@@TAXID RANK TAXPATH TAXPATHSN PERCENTAGE
+3379134	superkingdom	2||||||	Bacteria||||||	53.201267
+2759	superkingdom	2759||||||	Eukaryota||||||	46.798733
+1239	phylum	2|1239|||||	Bacteria|Bacillota|||||	31.631079
+5204	phylum	2759|5204|||||	Eukaryota|Basidiomycota|||||	24.651338
+4890	phylum	2759|4890|||||	Eukaryota|Ascomycota|||||	22.147395
+1224	phylum	2|1224|||||	Bacteria|Pseudomonadota|||||	21.570188
+91061	class	2|1239|91061||||	Bacteria|Bacillota|Bacilli||||	31.631079
+155616	class	2759|5204|155616||||	Eukaryota|Basidiomycota|Tremellomycetes||||	24.651338
+4891	class	2759|4890|4891||||	Eukaryota|Ascomycota|Saccharomycetes||||	22.147395
+1236	class	2|1224|1236||||	Bacteria|Pseudomonadota|Gammaproteobacteria||||	21.570188
+5234	order	2759|5204|155616|5234|||	Eukaryota|Basidiomycota|Tremellomycetes|Tremellales|||	24.651338
+4892	order	2759|4890|4891|4892|||	Eukaryota|Ascomycota|Saccharomycetes|Saccharomycetales|||	22.147395
+1385	order	2|1239|91061|1385|||	Bacteria|Bacillota|Bacilli|Bacillales|||	21.114258
+91347	order	2|1224|1236|91347|||	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|||	20.934313
+186826	order	2|1239|91061|186826|||	Bacteria|Bacillota|Bacilli|Lactobacillales|||	10.516821
+72274	order	2|1224|1236|72274|||	Bacteria|Pseudomonadota|Gammaproteobacteria|Pseudomonadales|||	0.635875
+1884633	family	2759|5204|155616|5234|1884633||	Eukaryota|Basidiomycota|Tremellomycetes|Tremellales|Cryptococcaceae||	24.651338
+4893	family	2759|4890|4891|4892|4893||	Eukaryota|Ascomycota|Saccharomycetes|Saccharomycetales|Saccharomycetaceae||	22.147395
+543	family	2|1224|1236|91347|543||	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae||	20.934313
+186817	family	2|1239|91061|1385|186817||	Bacteria|Bacillota|Bacilli|Bacillales|Bacillaceae||	8.688554
+186820	family	2|1239|91061|1385|186820||	Bacteria|Bacillota|Bacilli|Bacillales|Listeriaceae||	6.449395
+81852	family	2|1239|91061|186826|81852||	Bacteria|Bacillota|Bacilli|Lactobacillales|Enterococcaceae||	6.139144
+90964	family	2|1239|91061|1385|90964||	Bacteria|Bacillota|Bacilli|Bacillales|Staphylococcaceae||	5.976309
+33958	family	2|1239|91061|186826|33958||	Bacteria|Bacillota|Bacilli|Lactobacillales|Lactobacillaceae||	4.377677
+135621	family	2|1224|1236|72274|135621||	Bacteria|Pseudomonadota|Gammaproteobacteria|Pseudomonadales|Pseudomonadaceae||	0.635875
+5206	genus	2759|5204|155616|5234|1884633|5206|	Eukaryota|Basidiomycota|Tremellomycetes|Tremellales|Cryptococcaceae|Cryptococcus|	24.651338
+4930	genus	2759|4890|4891|4892|4893|4930|	Eukaryota|Ascomycota|Saccharomycetes|Saccharomycetales|Saccharomycetaceae|Saccharomyces|	22.147395
+590	genus	2|1224|1236|91347|543|590|	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Salmonella|	11.276973
+561	genus	2|1224|1236|91347|543|561|	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia|	9.657341
+1386	genus	2|1239|91061|1385|186817|1386|	Bacteria|Bacillota|Bacilli|Bacillales|Bacillaceae|Bacillus|	8.688554
+1637	genus	2|1239|91061|1385|186820|1637|	Bacteria|Bacillota|Bacilli|Bacillales|Listeriaceae|Listeria|	6.449395
+1350	genus	2|1239|91061|186826|81852|1350|	Bacteria|Bacillota|Bacilli|Lactobacillales|Enterococcaceae|Enterococcus|	6.139144
+1279	genus	2|1239|91061|1385|90964|1279|	Bacteria|Bacillota|Bacilli|Bacillales|Staphylococcaceae|Staphylococcus|	5.976309
+2742598	genus	2|1239|91061|186826|33958|2742598|	Bacteria|Bacillota|Bacilli|Lactobacillales|Lactobacillaceae|Limosilactobacillus|	4.377677
+286	genus	2|1224|1236|72274|135621|286|	Bacteria|Pseudomonadota|Gammaproteobacteria|Pseudomonadales|Pseudomonadaceae|Pseudomonas|	0.635875
+5207	species	2759|5204|155616|5234|1884633|5206|5207	Eukaryota|Basidiomycota|Tremellomycetes|Tremellales|Cryptococcaceae|Cryptococcus|Cryptococcus neoformans	24.651338
+4932	species	2759|4890|4891|4892|4893|4930|4932	Eukaryota|Ascomycota|Saccharomycetes|Saccharomycetales|Saccharomycetaceae|Saccharomyces|Saccharomyces cerevisiae	22.147395
+28901	species	2|1224|1236|91347|543|590|28901	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Salmonella|Salmonella enterica	11.276973
+562	species	2|1224|1236|91347|543|561|562	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia|Escherichia coli	9.657341
+1423	species	2|1239|91061|1385|186817|1386|1423	Bacteria|Bacillota|Bacilli|Bacillales|Bacillaceae|Bacillus|Bacillus subtilis	8.688554
+1639	species	2|1239|91061|1385|186820|1637|1639	Bacteria|Bacillota|Bacilli|Bacillales|Listeriaceae|Listeria|Listeria monocytogenes	6.449395
+1351	species	2|1239|91061|186826|81852|1350|1351	Bacteria|Bacillota|Bacilli|Lactobacillales|Enterococcaceae|Enterococcus|Enterococcus faecalis	6.139144
+1280	species	2|1239|91061|1385|90964|1279|1280	Bacteria|Bacillota|Bacilli|Bacillales|Staphylococcaceae|Staphylococcus|Staphylococcus aureus	5.976309
+1613	species	2|1239|91061|186826|33958|2742598|1613	Bacteria|Bacillota|Bacilli|Lactobacillales|Lactobacillaceae|Limosilactobacillus|Limosilactobacillus fermentum	4.377677
+287	species	2|1224|1236|72274|135621|286|287	Bacteria|Pseudomonadota|Gammaproteobacteria|Pseudomonadales|Pseudomonadaceae|Pseudomonas|Pseudomonas aeruginosa	0.635875

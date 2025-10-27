@@ -1,0 +1,2 @@
+sample_id	contigs_fa	truth_contigs_tsv	truth_profile_tsv	expected_taxa	citation
+zymo_mc	/data/case/zymo_mc_contigs.fna	truth/zymo_mc/truth_contigs.tsv	truth/zymo_mc/truth_profile.cami.tsv	"Bacillus subtilis;Escherichia coli;Salmonella enterica;Listeria monocytogenes;Staphylococcus aureus;Enterococcus faecalis;Pseudomonas aeruginosa;Limosilactobacillus fermentum;Saccharomyces cerevisiae;Cryptococcus neoformans"	"ZymoBIOMICS Microbial Community Standard (Even); Loman Lab Mock Community Assemblies v2.0; Nicholls et al., 2019 (GigaScience)"

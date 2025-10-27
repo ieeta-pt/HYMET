@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: continuumio/miniconda3:latest
+
+%labels
+    Author HYMET developers
+    Description "Singularity definition mirroring the HYMET Docker image"
+
+%files
+    environment.yml /tmp/environment.yml
+    . /workspace
+
+%post
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y bc ca-certificates perl unzip wget && rm -rf /var/lib/apt/lists/*
+    wget -qO /usr/local/bin/micromamba https://micromamba.snakepit.net/api/micromamba/linux-64/latest
+    chmod +x /usr/local/bin/micromamba
+    conda env create -f /tmp/environment.yml
+
+%environment
+    export PATH=/opt/conda/envs/hymet_env/bin:$PATH
+    export HYMET_ROOT=/workspace
+
+%runscript
+    exec "$@"

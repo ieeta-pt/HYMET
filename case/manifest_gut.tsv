@@ -1,0 +1,2 @@
+sample_id	contigs_fa	truth_contigs_tsv	truth_profile_tsv	expected_taxa	citation
+gut_case	/data/case/gut_case_contigs.fna			Bacteroides;Prevotella;Faecalibacterium prausnitzii;Ruminococcus;Alistipes;Roseburia;Escherichia/Shigella	MGnify MGYS00006849; Sample SRS9791096; Run SRR15489027; Assembly ERZ24911249; Analysis MGYA00794604

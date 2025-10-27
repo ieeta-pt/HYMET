@@ -1,0 +1,6 @@
+out/
+tmp/
+ablation/
+work/
+*.log
+*.tmp

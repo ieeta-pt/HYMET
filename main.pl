@@ -24,6 +24,11 @@ my $cleandf_script = "$base_path/scripts/cleandf.py";
 my $output_dir = "$base_path/output";
 my $data_dir = "$base_path/data";
 
+# Friendly hint about the new CLI
+print "[FYI] HYMET now ships with a unified CLI (bin/hymet). For batch runs try:\n";
+print "       bin/hymet run --contigs /path/to/sample.fna --out /path/to/out --threads 8\n";
+print "       bin/hymet bench --manifest bench/cami_manifest.tsv\n\n";
+
 # Prompt the user for the input directory (where the .fna files are located)
 print "Please enter the path to the input directory (containing .fna files): ";
 chomp(my $input_dir = <STDIN>);

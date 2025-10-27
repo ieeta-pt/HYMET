@@ -1,0 +1,18 @@
+name: hymet-benchmark
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - kraken2>=2.1
+  - bracken>=2.8
+  - centrifuge>=1.0.4
+  - ganon>=2.0
+  - sourmash>=4.8
+  - taxonkit>=0.14
+  - matplotlib>=3.8
+  - pandas>=1.5
+  - aria2>=1.36
+  - curl>=8
+  - wget>=1.21

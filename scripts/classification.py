@@ -97,7 +97,7 @@ def calculate_weighted_lineage(refs, ref_abundance, taxonomy):
 
 def determine_lca(taxid_weights, total_weight, taxonomy_hierarchy):
     if total_weight == 0:
-        return "Unknown", "root", 0.0
+        return "Unknown", "root", 0.0, None
 
     lineages = []
     for taxid, weight in taxid_weights.items():
@@ -106,7 +106,7 @@ def determine_lca(taxid_weights, total_weight, taxonomy_hierarchy):
             lineages.append((lineage, weight/total_weight))
 
     if not lineages:
-        return "Unknown", "root", 0.0
+        return "Unknown", "root", 0.0, None
 
     consensus = {}
     confidence = 1.0
@@ -114,6 +114,8 @@ def determine_lca(taxid_weights, total_weight, taxonomy_hierarchy):
         'superkingdom', 'phylum', 'class', 'order',
         'family', 'genus', 'species', 'strain'
     ]
+    best_taxid = None
+    best_weight = -1.0
 
     for rank in rank_order:
         level_counts = defaultdict(float)
@@ -130,13 +132,19 @@ def determine_lca(taxid_weights, total_weight, taxonomy_hierarchy):
         else:
             break  # Stop at first missing rank
 
+    # Determine representative taxid (highest weight among contributing taxids)
+    for taxid, weight in taxid_weights.items():
+        if taxid in taxonomy_hierarchy and weight > best_weight:
+            best_taxid = taxid
+            best_weight = weight
+
     lineage_parts = [consensus.get(rank) for rank in rank_order if consensus.get(rank)]
     if not lineage_parts:
-        return "Unknown", "root", 0.0
+        return "Unknown", "root", 0.0, best_taxid
 
     full_lineage = ";".join(lineage_parts)
     level = determine_taxonomic_level(full_lineage)
-    return full_lineage, level, min(confidence, 1.0)
+    return full_lineage, level, min(confidence, 1.0), best_taxid
 
 def process_query(args):
     query, refs, ref_abundance, taxonomy, taxonomy_hierarchy = args
@@ -148,13 +156,14 @@ def process_query(args):
         if taxid in taxonomy_hierarchy:
             lineage = taxonomy_hierarchy[taxid]
             level = determine_taxonomic_level(lineage)
-            return (query, lineage, level, 1.0)
+            return (query, lineage, level, taxid, 1.0)
 
     # Calculate LCA for non-exact matches
     taxid_weights, total_weight = calculate_weighted_lineage(refs, ref_abundance, taxonomy)
-    lineage, level, confidence = determine_lca(taxid_weights, total_weight, taxonomy_hierarchy)
+    lineage, level, confidence, representative_taxid = determine_lca(taxid_weights, total_weight, taxonomy_hierarchy)
+    taxid_out = representative_taxid if representative_taxid is not None else "Unknown"
     
-    return (query, lineage, level, confidence)
+    return (query, lineage, level, taxid_out, confidence)
 
 def main_process(paf_file, taxonomy_file, hierarchy_file, output_file, processes=4):
     taxonomy = load_taxonomy_file(taxonomy_file)
@@ -170,13 +179,14 @@ def main_process(paf_file, taxonomy_file, hierarchy_file, output_file, processes
 
     with open(output_file, 'w') as f:
         writer = csv.writer(f, delimiter='\t')
-        writer.writerow(['Query', 'Lineage', 'Taxonomic Level', 'Confidence'])
+        writer.writerow(['Query', 'Lineage', 'Taxonomic Level', 'TaxID', 'Confidence'])
         
         classified = 0
-        for query, lineage, level, confidence in results:
-            if lineage != 'Unknown':
+        for query, lineage, level, taxid, confidence in results:
+            if lineage != 'Unknown' and taxid != "Unknown":
                 classified += 1
-            writer.writerow([query, lineage, level, f"{confidence:.4f}"])
+            taxid_str = str(taxid) if taxid is not None else "Unknown"
+            writer.writerow([query, lineage, level, taxid_str, f"{confidence:.4f}"])
 
     logging.info(f"Classification complete. Results saved to {output_file}")
     logging.info(f"Classified: {classified}/{len(results)} ({classified/len(results):.1%})")
