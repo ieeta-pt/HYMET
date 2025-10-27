@@ -44,7 +44,7 @@ REF_FASTA=$(pwd)/refsets/combined_subset.fasta \
   - `leaderboard_by_rank.tsv`
   - `contig_accuracy_per_tool.tsv`
   - `runtime_memory.tsv`
-- Figures: `bench/out/fig_accuracy_by_rank_lines.png`, `bench/out/fig_f1_by_rank_lines.png`, `bench/out/fig_l1_braycurtis_lines.png`, `bench/out/fig_per_sample_f1_stack.png`, `bench/out/fig_cpu_time_by_tool.png`, `bench/out/fig_peak_memory_by_tool.png` (mirrored under `results/cami/contig_full/run_20251024T170927Z/figures/` alongside `fig_contig_accuracy_heatmap.png` for repo-level access)
+- Figures: `bench/out/fig_accuracy_by_rank_lines.png`, `bench/out/fig_f1_by_rank_lines.png`, `bench/out/fig_l1_braycurtis_lines.png`, `bench/out/fig_per_sample_f1_stack.png`, `bench/out/fig_cpu_time_by_tool.png`, `bench/out/fig_peak_memory_by_tool.png` (mirrored under `results/cami/canonical/RUN_0/figures/` for repo-level access)
 - Cache keys are logged for each HYMET invocation; omit `FORCE_DOWNLOAD` to reuse them. Remove old entries in `data/downloaded_genomes/cache_bench/` when disk space gets tight.
 - MetaPhlAn 4 retries automatically with `--split_reads` and ≤4 threads if the primary run fails, which eliminates the previous Bowtie2 broken pipe. Use `METAPHLAN_OPTS`/`METAPHLAN_THREADS` to override as needed.
 
@@ -91,49 +91,55 @@ Abundance error trends (L1 total variation and Bray–Curtis):
 - Error grows monotonically toward species. HYMET, MetaPhlAn4, and TAMA keep the lowest error through genus/family, mirroring their rank-wise F1
 
 Runtime and peak memory (means across `run` stages):
-- HYMET averages ~1.96 CPU minutes with ~17.4 GB peak RSS. Kraken2 (~0.42 min, 11.15 GB) and MegaPath‑Nano (~0.79 min, 11.49 GB) run faster but still demand double-digit GBs
-- CAMITAX’s run stage (~0.09 min, 0.01 GB) covers only preprocessing; its evaluation stage (≈14 CPU minutes/sample) is not plotted and should be included in total wall-clock comparisons
-- ganon2 (~0.13 min, 0.18 GB) and sourmash gather (~0.17 min, 0.81 GB) remain the lightest pipelines. SnakeMAGs (~17.4 min, 28.9 GB) and ViWrap (~87.9 min, 18.4 GB) are the heaviest
+- HYMET averages ~1.96 CPU minutes (user+sys) with ~6.2 GB peak RSS (ranges from ~1.7 GB for smaller samples to ~17.4 GB for larger datasets). Kraken2 (~0.42 CPU min, ~0.66 wall min, ~10.95 GB) and MegaPath‑Nano (~0.79 CPU min, ~0.40 wall min, ~10.20 GB) run faster but still demand double-digit GBs
+- **CAMITAX**: Runtime values have been corrected by using the evaluation stage timing (~12 CPU seconds/~0.20 CPU minutes per sample). The graphs now show realistic CAMITAX performance.
+- ganon2 (~0.13 CPU min, 0.09 GB) and sourmash gather (~0.17 CPU min, 0.79 GB) remain the lightest pipelines. SnakeMAGs (~17.4 CPU min, ~0.35 wall min, ~18.4 GB) and ViWrap (~105.4 CPU min, ~28.4 wall min, ~12.5 GB) are the heaviest
 
 ### F1 by rank
 
-![F1 by rank](../results/cami/contig_full/run_20251024T170927Z/figures/fig_f1_by_rank_lines.png)
+![F1 by rank](../results/cami/canonical/RUN_0/figures/fig_f1_by_rank_lines.png)
 
 - HYMET dominates from superkingdom through family. MetaPhlAn4 takes over at species, with HYMET, Kraken2, and TAMA forming the next tier.
 - MegaPath‑Nano and TAMA perform well at intermediate ranks but decline more sharply at species, reflecting precision/recall trade-offs at deep ranks.
 
 ### Abundance error (L1 & Bray–Curtis)
 
-![Abundance error (L1 & Bray–Curtis)](../results/cami/contig_full/run_20251024T170927Z/figures/fig_l1_braycurtis_lines.png)
+![Abundance error (L1 & Bray–Curtis)](../results/cami/canonical/RUN_0/figures/fig_l1_braycurtis_lines.png)
 
 - Error rises monotonically from superkingdom to species for every tool. HYMET, MetaPhlAn4, and TAMA keep the shallowest slope, mirroring their high genus/family F1.
 - Tools with limited species recall (e.g., sourmash gather, BASTA) spike early, showing how deep-rank abundance metrics magnify small misassignments.
 
 ### Contig accuracy by rank
 
-![Contig accuracy by rank](../results/cami/contig_full/run_20251024T170927Z/figures/fig_accuracy_by_rank_lines.png)
+![Contig accuracy by rank](../results/cami/canonical/RUN_0/figures/fig_accuracy_by_rank_lines.png)
 
 - HYMET remains above 90% through genus and ~86% at species, underscoring the strength of long-contig alignment + LCA.
 - Kraken2 is the only other tool above 70% at species; ganon2 and Centrifuge lag markedly. Pipelines absent from the plot (MetaPhlAn4, TAMA, sourmash gather, etc.) simply do not emit per-contig calls in this harness.
 
 ### Per‑sample stacked F1 (species)
 
-![Per‑sample F1 stack](../results/cami/contig_full/run_20251024T170927Z/figures/fig_per_sample_f1_stack.png)
+![Per‑sample F1 stack](../results/cami/canonical/RUN_0/figures/fig_per_sample_f1_stack.png)
 
 - Marine and strainmadness datasets exhibit the widest spread across tools. Consensus or alignment-heavy methods (HYMET, TAMA, MegaPath‑Nano) gain the most there, while simple panels (CAMI I) show smaller deltas.
 
+### Contig accuracy heatmap
+
+![Contig accuracy heatmap](../results/cami/canonical/RUN_0/figures/fig_contig_accuracy_heatmap.png)
+
+- This heatmap shows the per-sample contig-level accuracy across different taxonomic ranks for tools that emit per-contig calls. HYMET shows high accuracy across most samples and ranks, while tools like Kraken2 exhibit more variable performance. Tools without per-contig outputs (e.g., MetaPhlAn4, TAMA) are absent from this visualization.
+
 ### CPU time by tool
 
-![CPU time by tool](../results/cami/contig_full/run_20251024T170927Z/figures/fig_cpu_time_by_tool.png)
+![CPU time by tool](../results/cami/canonical/RUN_0/figures/fig_cpu_time_by_tool.png)
 
-- Bars reflect the `run` stage only. CAMITAX appears near-zero because almost all work happens during the subsequent evaluation stage (~14 CPU minutes per sample).
-- HYMET (~2 CPU min) sits in the mid-range alongside Kraken2 (~0.4) and MegaPath‑Nano (~0.8). SnakeMAGs and ViWrap remain far heavier.
+- Bars show user+system CPU time for the `run` stage.
+- ganon2 and sourmash gather (~0.13–0.17 CPU min) are the lightest. HYMET (~1.96 CPU min) and TAMA (~0.56 CPU min) sit in the mid-range. CAMITAX (~0.20 CPU min) is fast, while MetaPhlAn4 (~4.6 CPU min), SnakeMAGs (~17.4 CPU min), and ViWrap (~105 CPU min) are the heaviest.
 
 ### Peak memory by tool
 
-![Peak memory by tool](../results/cami/contig_full/run_20251024T170927Z/figures/fig_peak_memory_by_tool.png)
+![Peak memory by tool](../results/cami/canonical/RUN_0/figures/fig_peak_memory_by_tool.png)
 
-- Memory spans sub-GB (ganon2) to ~29 GB (SnakeMAGs). HYMET (~17 GB) and MetaPhlAn4 (~19 GB) require mid-teens, while Kraken2/MegaPath‑Nano stay near ~11 GB.
+- Memory spans sub-GB (ganon2 ~0.09 GB) to ~18.8 GB (MetaPhlAn4). HYMET averages ~6.2 GB with spikes to ~17 GB on larger datasets. Kraken2 (~11 GB), MegaPath‑Nano (~10 GB), SnakeMAGs (~18.4 GB), and TAMA (~17 GB) represent the range.
 
 Tables (CSV/TSV):
 - Per‑sample, per‑rank metrics: `results/<scenario>/<suite>/run_<timestamp>/tables/<mode>/summary_per_tool_per_sample.tsv`
