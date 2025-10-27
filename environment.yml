@@ -11,14 +11,8 @@ dependencies:
   - wget
   - pandas
   - numpy
+  - taxonkit
   - pip
   - pytest
   - biopython
   - csvkit
-  - gzip
-  - shutil
-  - logging
-  - multiprocessing
-  - argparse
-  - pip:
-    - biopython

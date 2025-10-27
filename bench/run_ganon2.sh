@@ -130,6 +130,21 @@ if [[ "${KEEP_GANON_RAW:-0}" -eq 0 ]]; then
   ASSIGN_META=""
 fi
 
+GANON_VER=$(ganon --version 2>/dev/null | head -n1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "ganon2", "profile": "${PROFILE_CAMI}", "contigs": "${CLASSIFIED_TSV}", "assignments": "${ASSIGN_META}", "report": "${REPORT_FILE}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "ganon2",
+  "profile": "${PROFILE_CAMI}",
+  "classified": "${CLASSIFIED_TSV}",
+  "assignments": "${ASSIGN_META}",
+  "report": "${REPORT_FILE}",
+  "db_prefix": "${INDEX_PREFIX}",
+  "threads": "${THREADS}",
+  "rel_cutoff": "${REL_CUTOFF}",
+  "rel_filter": "${REL_FILTER}",
+  "ganon_version": "${GANON_VER}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

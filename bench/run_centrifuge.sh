@@ -101,6 +101,19 @@ if [[ "${KEEP_CENTRIFUGE_RAW:-0}" -eq 0 ]]; then
   OUTPUT_META=""
 fi
 
+CENTRIFUGE_VER=$(centrifuge --version 2>/dev/null | head -n1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "centrifuge", "profile": "${PROFILE_CAMI}", "contigs": "${CLASSIFIED_TSV}", "report": "${REPORT}", "output_raw": "${OUTPUT_META}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "centrifuge",
+  "profile": "${PROFILE_CAMI}",
+  "classified": "${CLASSIFIED_TSV}",
+  "report": "${REPORT}",
+  "db_prefix": "${INDEX_PREFIX}",
+  "threads": "${THREADS}",
+  "output_raw": "${OUTPUT_META}",
+  "centrifuge_version": "${CENTRIFUGE_VER}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

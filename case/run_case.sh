@@ -15,12 +15,24 @@ METAPHLAN_CMD="${METAPHLAN_CMD:-metaphlan}"
 METAPHLAN_OPTS="${METAPHLAN_OPTS:-}"
 MEASURE="${CASE_ROOT}/lib/measure.sh"
 RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
+SCENARIO="${CASE_SCENARIO:-cases}"
+SUITE_NAME="${CASE_SUITE:-canonical}"
+SUITE_PATH=""
+PUBLISH_RESULTS=1
+CUSTOM_OUT=0
+RUN_STAMP=""
+RUN_DIR=""
+TABLES_DIR=""
+FIGURES_DIR=""
+declare -a CASE_SAMPLES=()
 
 usage(){
   cat <<'USAGE'
 Usage: run_case.sh [--manifest TSV] [--out DIR] [--threads N]
                    [--top-n K] [--sanity-metaphlan]
                    [--metaphlan-cmd PATH] [--metaphlan-opts "..."]
+                   [--scenario NAME] [--suite NAME]
+                   [--suite-path REL/PATH] [--no-publish]
 USAGE
   exit 1
 }
@@ -34,14 +46,47 @@ while [[ $# -gt 0 ]]; do
     --sanity-metaphlan) SANITY_METAPHLAN=1; shift;;
     --metaphlan-cmd) METAPHLAN_CMD="$2"; shift 2;;
     --metaphlan-opts) METAPHLAN_OPTS="$2"; shift 2;;
+    --scenario) SCENARIO="$2"; shift 2;;
+    --suite) SUITE_NAME="$2"; shift 2;;
+    --suite-path) SUITE_PATH="$2"; shift 2;;
+    --no-publish) PUBLISH_RESULTS=0; shift;;
     -h|--help) usage;;
     *) usage;;
   esac
 done
 
 MANIFEST="$(resolve_path "${MANIFEST}")"
-OUT_ROOT="$(resolve_path "${OUT_ROOT}")"
-ensure_dir "${OUT_ROOT}"
+MANIFEST_DIR="$(dirname "${MANIFEST}")"
+
+if [[ "${OUT_ROOT}" != "${CASE_ROOT}/out" ]]; then
+  CUSTOM_OUT=1
+  PUBLISH_RESULTS=0
+fi
+
+if [[ ${CUSTOM_OUT} -eq 1 || "${PUBLISH_RESULTS}" -eq 0 ]]; then
+  OUT_ROOT="$(resolve_path "${OUT_ROOT}")"
+  ensure_dir "${OUT_ROOT}"
+else
+  RUN_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+  if [[ -n "${SUITE_PATH}" ]]; then
+    if [[ "${SUITE_PATH}" = /* ]]; then
+      run_base="${SUITE_PATH}"
+    else
+      run_base="${HYMET_ROOT}/results/${SUITE_PATH}"
+    fi
+  else
+    run_base="${HYMET_ROOT}/results/${SCENARIO}/${SUITE_NAME}"
+  fi
+  RUN_DIR="${run_base}/run_${RUN_STAMP}"
+  OUT_ROOT="$(resolve_path "${RUN_DIR}/raw")"
+  TABLES_DIR="$(resolve_path "${RUN_DIR}/tables")"
+  FIGURES_DIR="$(resolve_path "${RUN_DIR}/figures")"
+  ensure_dir "${OUT_ROOT}"
+  ensure_dir "${TABLES_DIR}"
+  ensure_dir "${FIGURES_DIR}"
+fi
+
+RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
 
 [[ -s "${MANIFEST}" ]] || die "Manifest not found: ${MANIFEST}"
 
@@ -56,6 +101,7 @@ EOF
 }
 
 TOP_SUMMARY="${OUT_ROOT}/top_taxa_summary.tsv"
+SUMMARY_METAPHLAN="${OUT_ROOT}/metaphlan_metrics.tsv"
 append_summary_header "${TOP_SUMMARY}"
 
 while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -68,12 +114,13 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
     continue
   fi
 
-  contigs_abs="$(resolve_path "${contigs}")"
+  contigs_abs="$(resolve_path "${contigs}" "${MANIFEST_DIR}")"
   if [[ ! -s "${contigs_abs}" ]]; then
     log "WARNING: sample ${sample_id} missing contigs at ${contigs_abs}; skipping."
     continue
   fi
 
+  CASE_SAMPLES+=("${sample_id}")
   sample_out="${OUT_ROOT}/${sample_id}"
   hymet_out="${sample_out}/hymet"
   ensure_dir "${hymet_out}"
@@ -132,9 +179,15 @@ with open(summary_path, "a", newline="") as out:
         writer.writerow([sample_id, f"top_{entry['Rank']}", f"{entry['TaxPathSN']} ({entry['Percentage']})"])
 PY
 
+  git_commit="$(git -C "${HYMET_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+  git_dirty="$(git -C "${HYMET_ROOT}" status --porcelain 2>/dev/null || echo '')"
+  if [[ -n "${git_dirty}" && "${git_commit}" != "unknown" ]]; then git_commit="${git_commit}-dirty"; fi
+
   cat > "${sample_out}/metadata.json" <<EOF
 {
   "sample_id": "${sample_id}",
+  "hymet_commit": "${git_commit}",
+  "threads": ${THREADS},
   "contigs": "${contigs_abs}",
   "truth_contigs": "${truth_contigs}",
   "truth_profile": "${truth_profile}",
@@ -144,6 +197,8 @@ PY
   "hymet_classified": "${classified}"
 }
 EOF
+
+  normalize_metadata_json "${sample_out}/metadata.json" "${sample_out}"
 
   if [[ "${SANITY_METAPHLAN}" -eq 1 ]]; then
     metaphlan_out="${sample_out}/metaphlan"
@@ -263,12 +318,11 @@ with open(metrics_path, "w", newline="") as out:
     writer.writerow([sample_id, f"{sym_kl:.6f}", f"{spearman_corr:.6f}"])
 PY
       if [[ -s "${metrics}" ]]; then
-        summary_metrics="${OUT_ROOT}/metaphlan_metrics.tsv"
-        if [[ ! -s "${summary_metrics}" ]]; then
-          ensure_dir "$(dirname "${summary_metrics}")"
-          echo -e "sample\tSymmetric_KL_Divergence\tSpearman_Rank" > "${summary_metrics}"
+        if [[ ! -s "${SUMMARY_METAPHLAN}" ]]; then
+          ensure_dir "$(dirname "${SUMMARY_METAPHLAN}")"
+          echo -e "sample\tSymmetric_KL_Divergence\tSpearman_Rank" > "${SUMMARY_METAPHLAN}"
         fi
-        tail -n +2 "${metrics}" >> "${summary_metrics}"
+        tail -n +2 "${metrics}" >> "${SUMMARY_METAPHLAN}"
       fi
     else
       log "WARNING: MetaPhlAn profile missing for ${sample_id}; comparison skipped."
@@ -276,4 +330,56 @@ PY
   fi
 done < "${MANIFEST}"
 
-log "[case] Completed case-study run. Outputs in ${OUT_ROOT}"
+if [[ "${PUBLISH_RESULTS}" -eq 1 && -n "${RUN_DIR}" ]]; then
+  copy_if_exists(){
+    local src="$1"
+    local dst="$2"
+    if [[ -f "${src}" ]]; then
+      install -m 0644 -D "${src}" "${dst}"
+    fi
+  }
+
+  copy_if_exists "${RUNTIME_TSV}" "${TABLES_DIR}/runtime_memory.tsv"
+  copy_if_exists "${TOP_SUMMARY}" "${TABLES_DIR}/top_taxa_summary.tsv"
+  copy_if_exists "${SUMMARY_METAPHLAN}" "${TABLES_DIR}/metaphlan_metrics.tsv"
+
+  python3 "${CASE_ROOT}/plot_case.py" \
+    --case-root "${OUT_ROOT}" \
+    --figures-dir "${FIGURES_DIR}" \
+    --max-taxa "${TOP_N}"
+
+  CASE_SAMPLE_LIST=""
+  if [[ ${#CASE_SAMPLES[@]} -gt 0 ]]; then
+    CASE_SAMPLE_LIST="$(printf "%s\n" "${CASE_SAMPLES[@]}")"
+  fi
+  export CASE_SAMPLE_LIST
+  export RUN_DIR SCENARIO SUITE_NAME RUN_STAMP MANIFEST THREADS TOP_N SANITY_METAPHLAN HYMET_ROOT
+  python3 - <<'PY'
+import json, os, pathlib, subprocess
+run_dir = pathlib.Path(os.environ["RUN_DIR"])
+manifest = pathlib.Path(os.environ["MANIFEST"]).resolve()
+samples = [s for s in os.environ.get("CASE_SAMPLE_LIST", "").splitlines() if s]
+meta = {
+    "scenario": os.environ["SCENARIO"],
+    "suite": os.environ["SUITE_NAME"],
+    "run_id": run_dir.name,
+    "timestamp": os.environ.get("RUN_STAMP") or "manual",
+    "manifest": str(manifest),
+    "threads": int(os.environ.get("THREADS") or 0),
+    "top_n": int(os.environ.get("TOP_N") or 0),
+    "samples": samples,
+    "sanity_metaphlan": bool(int(os.environ.get("SANITY_METAPHLAN") or "0")),
+    "source": "case/run_case.sh",
+    "git_commit": subprocess.run(
+        ["git", "-C", os.environ["HYMET_ROOT"], "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip() or "unknown",
+}
+(run_dir / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
+PY
+  log "[case] Published case-study artefacts to ${RUN_DIR}"
+else
+  log "[case] Completed case-study run. Outputs in ${OUT_ROOT}"
+fi

@@ -16,6 +16,9 @@
 
 set -Eeuo pipefail
 
+# Deterministic Python hashing for downstream helpers
+export PYTHONHASHSEED="0"
+
 # ----------------- params -----------------
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${ROOT:-${SCRIPT_ROOT}}"
@@ -261,3 +264,43 @@ echo "[preview] classified_sequences.tsv:"
 head -n 5 "$OUTDIR/classified_sequences.tsv" || true
 echo "[preview] CAMI profile:"
 head -n 5 "$OUTDIR/hymet.sample_0.cami.tsv" || true
+
+# 8) Write reproducibility metadata (version, params, checksums)
+git_commit="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '')"
+git_dirty="$(git -C "$ROOT" status --porcelain 2>/dev/null || echo '')"
+[[ -n "$git_commit" ]] || git_commit="unknown"
+if [[ -n "$git_dirty" ]]; then git_commit="${git_commit}-dirty"; fi
+
+minimap2_ver="$(minimap2 --version 2>/dev/null || echo 'unknown')"
+mash_ver="$(mash --version 2>/dev/null | head -n1 | awk '{print $2}' || echo 'unknown')"
+
+sk1_sha="$(sha256sum data/sketch1.msh 2>/dev/null | awk '{print $1}')"
+sk2_sha="$(sha256sum data/sketch2.msh 2>/dev/null | awk '{print $1}')"
+sk3_sha="$(sha256sum data/sketch3.msh 2>/dev/null | awk '{print $1}')"
+
+os_uname="$(uname -srm)"
+py_ver="$(python3 --version 2>/dev/null | awk '{print $2}')"
+
+cat >"${OUTDIR}/metadata.json" <<EOF
+{
+  "hymet_commit": "${git_commit}",
+  "threads": ${THREADS},
+  "mash_threshold": ${MASH_THRESH},
+  "cand_max": ${CAND_MAX},
+  "species_dedup": ${SPECIES_DEDUP},
+  "assembly_summary_dir": "${ASSEMBLY_SUMMARY_DIR}",
+  "cache_root": "${CACHE_ROOT}",
+  "cache_key": "${CACHE_KEY}",
+  "minimap2_version": "${minimap2_ver}",
+  "mash_version": "${mash_ver}",
+  "sketch_sha256": {
+    "sketch1.msh": "${sk1_sha}",
+    "sketch2.msh": "${sk2_sha}",
+    "sketch3.msh": "${sk3_sha}"
+  },
+  "system": {
+    "uname": "${os_uname}",
+    "python": "${py_ver}"
+  }
+}
+EOF

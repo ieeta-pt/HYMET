@@ -6,6 +6,8 @@ if [[ -n "${CASE_COMMON_SOURCED:-}" ]]; then
 fi
 CASE_COMMON_SOURCED=1
 
+: "${CASE_CALLER_PWD:=$(pwd -P)}"
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -28,16 +30,56 @@ ensure_dir(){
 }
 
 resolve_path(){
-  local input="$1"
-  python3 - "$input" "$CASE_ROOT" <<'PY'
-import os, sys
-value, case_root = sys.argv[1], sys.argv[2]
+  local input="${1:-}"
+  local base="${2:-${CASE_CALLER_PWD}}"
+  python3 - "$input" "$base" <<'PY'
+import os, pathlib, sys
+value, base = sys.argv[1], sys.argv[2]
 if not value:
     print("", end="")
-elif os.path.isabs(value):
-    print(os.path.normpath(value), end="")
-else:
-    print(os.path.normpath(os.path.join(case_root, value)), end="")
+    raise SystemExit
+value = os.path.expanduser(value)
+path = pathlib.Path(value)
+if path.is_absolute():
+    print(str(path.resolve()), end="")
+    raise SystemExit
+base_path = pathlib.Path(base or ".").resolve()
+print(str((base_path / path).resolve()), end="")
+PY
+}
+
+normalize_metadata_json(){
+  local json_path="$1"
+  local base_dir="${2:-$(dirname "$1")}"
+  if [[ ! -f "${json_path}" ]]; then
+    return 0
+  fi
+  python3 - "$json_path" "$base_dir" <<'PY'
+import json, os, sys
+
+json_path, base_dir = sys.argv[1:3]
+base_dir = os.path.abspath(base_dir)
+
+def convert(value):
+    if isinstance(value, dict):
+        return {key: convert(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [convert(item) for item in value]
+    if isinstance(value, str) and os.path.isabs(value):
+        try:
+            return os.path.relpath(value, base_dir)
+        except ValueError:
+            return value
+    return value
+
+with open(json_path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+data = convert(data)
+
+with open(json_path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
 PY
 }
 

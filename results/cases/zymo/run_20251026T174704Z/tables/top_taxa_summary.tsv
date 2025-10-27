@@ -1,0 +1,11 @@
+sample	metric	value
+zymo_mc	top_superkingdom	Bacteria (100.000000)
+zymo_mc	top_phylum	Bacteria|Bacillota (56.944444)
+zymo_mc	top_class	Bacteria|Bacillota|Bacilli (56.944444)
+zymo_mc	top_phylum	Bacteria|Pseudomonadota (43.055556)
+zymo_mc	top_class	Bacteria|Pseudomonadota|Gammaproteobacteria (43.055556)
+zymo_mc	top_order	Bacteria|Bacillota|Bacilli|Bacillales (41.666667)
+zymo_mc	top_order	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales (38.888889)
+zymo_mc	top_family	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae (38.888889)
+zymo_mc	top_genus	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia (26.388889)
+zymo_mc	top_species	Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia|Escherichia coli (22.222222)

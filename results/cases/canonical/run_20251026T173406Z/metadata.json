@@ -1,0 +1,16 @@
+{
+  "scenario": "cases",
+  "suite": "canonical",
+  "run_id": "run_20251026T173406Z",
+  "timestamp": "20251026T173406Z",
+  "manifest": "/mnt/HC_Volume_103721442/HYMET/case/manifest.tsv",
+  "threads": 16,
+  "top_n": 10,
+  "samples": [
+    "zymo_mc",
+    "gut_case"
+  ],
+  "sanity_metaphlan": false,
+  "source": "case/run_case.sh",
+  "git_commit": "186bcbdd63ee4299d85c2c337b14af8b344e4df7"
+}

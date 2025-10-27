@@ -13,9 +13,9 @@ from typing import Dict, Iterable, List
 
 if __package__ is None or __package__ == "":  # pragma: no cover - CLI fallback
     sys.path.append(os.path.dirname(__file__))
-    from common import RANKS, normalise_rows, taxonkit_taxpath, write_cami_profile  # type: ignore
+    from common import RANKS, normalise_rows, rollup_to_ancestors, taxonkit_taxpath, write_cami_profile  # type: ignore
 else:  # pragma: no cover
-    from .common import RANKS, normalise_rows, taxonkit_taxpath, write_cami_profile
+    from .common import RANKS, normalise_rows, rollup_to_ancestors, taxonkit_taxpath, write_cami_profile
 
 
 def load_seqid_map(path: str) -> Dict[str, str]:
@@ -138,7 +138,8 @@ def main() -> None:
         )
 
     rows = normalise_rows(rows)
-    write_cami_profile(rows, args.out, args.sample_id, args.tool, normalise=False)
+    rows = rollup_to_ancestors(rows)
+    write_cami_profile(rows, args.out, args.sample_id, args.tool, normalise=True)
 
 
 if __name__ == "__main__":

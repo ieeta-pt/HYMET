@@ -135,6 +135,22 @@ python3 "${SCRIPT_DIR}/convert/sourmash_gather_to_cami.py" \
   --tool "sourmash_gather" \
   --out "${PROFILE_CAMI}"
 
+SOURMASH_VER=$(sourmash --version 2>/dev/null | head -n1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "sourmash_gather", "profile": "${PROFILE_CAMI}", "gather_csv": "${GATHER_CSV}", "seqmap": "${SEQMAP}", "index": "${INDEX_FILE}", "query_sig": "${QUERY_SIG}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "sourmash_gather",
+  "profile": "${PROFILE_CAMI}",
+  "gather_csv": "${GATHER_CSV}",
+  "seqmap": "${SEQMAP}",
+  "index": "${INDEX_FILE}",
+  "query_sig": "${QUERY_SIG}",
+  "ksize": "${KSIZE}",
+  "scaled": "${SCALED}",
+  "top_hits": "${TOP_HITS}",
+  "threads": "${THREADS}",
+  "sourmash_version": "${SOURMASH_VER}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

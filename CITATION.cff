@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: "HYMET: A Hybrid Metagenomic Pipeline for Accurate and Efficient Taxonomic Classification"
+message: "If you use HYMET, please cite this software and the accompanying manuscript."
+type: software
+authors:
+  - family-names: Silva
+    given-names: Jorge Miguel
+    affiliation: IEETA/DETI, LASI, University of Aveiro
+    email: jorge.miguel.ferreira.silva@ua.pt
+  - family-names: Martins
+    given-names: Inês
+    affiliation: IEETA/DETI, LASI, University of Aveiro
+  - family-names: Almeida
+    given-names: João Rafael
+    affiliation: IEETA/DETI, LASI, University of Aveiro
+repository-code: https://github.com/ieeta-pt/HYMET
+license: MIT
+keywords:
+  - metagenomics
+  - taxonomy
+  - mash
+  - minimap2
+  - benchmarking
+version: 0.1.0
+date-released: 2024-10-23

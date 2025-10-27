@@ -144,6 +144,22 @@ if [[ "${KEEP_KRAKEN2_RAW:-0}" -eq 0 ]]; then
   OUTPUT_META=""
 fi
 
+# Write per-run provenance metadata (include versions when available)
+KRAKEN_VER=$(kraken2 --version 2>/dev/null | tr '\n' ' ' | sed 's/\s\+/ /g' || echo "unknown")
+BRACKEN_VER=$(bracken -v 2>/dev/null | tr '\n' ' ' | sed 's/\s\+/ /g' || echo "unknown")
 cat > "${OUT_DIR}/metadata.json" <<EOF
-{"sample_id": "${SAMPLE}", "tool": "kraken2", "profile": "${PROFILE_CAMI}", "contigs": "${CLASSIFIED_TSV}", "report": "${REPORT}", "db_dir": "${DB_DIR}", "output_raw": "${OUTPUT_META}"}
+{
+  "sample_id": "${SAMPLE}",
+  "tool": "kraken2+bracken",
+  "profile": "${PROFILE_CAMI}",
+  "classified": "${CLASSIFIED_TSV}",
+  "report": "${BRACKEN_REPORT}",
+  "db_dir": "${DB_DIR}",
+  "threads": "${THREADS}",
+  "output_raw": "${OUTPUT_META}",
+  "kraken2_version": "${KRAKEN_VER}",
+  "bracken_version": "${BRACKEN_VER}"
+}
 EOF
+
+normalize_metadata_json "${OUT_DIR}/metadata.json" "${OUT_DIR}"

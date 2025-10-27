@@ -1,0 +1,124 @@
+{
+  "samples": [
+    {
+      "name": "gut_case",
+      "runtime": {
+        "wall_seconds": 257.54,
+        "cpu_seconds": 342.4,
+        "rss_gb": 17.405
+      },
+      "top_taxa": [
+        {
+          "rank": "superkingdom",
+          "label": "Bacteria",
+          "pct": 99.846608
+        },
+        {
+          "rank": "phylum",
+          "label": "Bacteria|Bacillota",
+          "pct": 82.092429
+        },
+        {
+          "rank": "class",
+          "label": "Bacteria|Bacillota|Clostridia",
+          "pct": 74.536873
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|Lachnospirales",
+          "pct": 36.680433
+        },
+        {
+          "rank": "family",
+          "label": "Bacteria|Bacillota|Clostridia|Lachnospirales|Lachnospiraceae",
+          "pct": 36.680433
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|Eubacteriales",
+          "pct": 20.86529
+        },
+        {
+          "rank": "species",
+          "label": "Bacteria|Bacillota|Clostridia||||Clostridia bacterium UC5.1-1D4",
+          "pct": 12.440511
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Clostridia|",
+          "pct": 12.440511
+        },
+        {
+          "rank": "genus",
+          "label": "Bacteria|Bacillota|Clostridia|||",
+          "pct": 12.440511
+        },
+        {
+          "rank": "family",
+          "label": "Bacteria|Bacillota|Clostridia||",
+          "pct": 12.440511
+        }
+      ]
+    },
+    {
+      "name": "zymo_mc",
+      "runtime": {
+        "wall_seconds": 253.87,
+        "cpu_seconds": 305.56,
+        "rss_gb": 17.419
+      },
+      "top_taxa": [
+        {
+          "rank": "superkingdom",
+          "label": "Bacteria",
+          "pct": 100.0
+        },
+        {
+          "rank": "phylum",
+          "label": "Bacteria|Bacillota",
+          "pct": 56.944444
+        },
+        {
+          "rank": "class",
+          "label": "Bacteria|Bacillota|Bacilli",
+          "pct": 56.944444
+        },
+        {
+          "rank": "phylum",
+          "label": "Bacteria|Pseudomonadota",
+          "pct": 43.055556
+        },
+        {
+          "rank": "class",
+          "label": "Bacteria|Pseudomonadota|Gammaproteobacteria",
+          "pct": 43.055556
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Bacillota|Bacilli|Bacillales",
+          "pct": 41.666667
+        },
+        {
+          "rank": "order",
+          "label": "Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales",
+          "pct": 38.888889
+        },
+        {
+          "rank": "family",
+          "label": "Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae",
+          "pct": 38.888889
+        },
+        {
+          "rank": "genus",
+          "label": "Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia",
+          "pct": 26.388889
+        },
+        {
+          "rank": "species",
+          "label": "Bacteria|Pseudomonadota|Gammaproteobacteria|Enterobacterales|Enterobacteriaceae|Escherichia|Escherichia coli",
+          "pct": 22.222222
+        }
+      ]
+    }
+  ]
+}

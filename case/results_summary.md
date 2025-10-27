@@ -39,10 +39,10 @@ cd HYMET
 bin/hymet case --manifest case/manifest_zymo.tsv --threads 8 --cache-root case/data/downloaded_genomes/cache_case
 ```
 
-Evaluation with synthesized truth (generated from the multi-strain panel):
+Evaluation with synthesized truth (generated from the multi-strain panel). Assuming the default suite (`results/cases/canonical/run_<timestamp>/`), the relevant artefacts live under `raw/zymo_mc/hymet/eval/`:
 
-- Profile metrics: `case/out/zymo_mc/hymet/eval/profile_summary.tsv`
-- Contig-level metrics: `case/out/zymo_mc/hymet/eval/contigs_per_rank.tsv`
+- Profile metrics: `results/cases/canonical/run_<timestamp>/raw/zymo_mc/hymet/eval/profile_summary.tsv`
+- Contig-level metrics: `results/cases/canonical/run_<timestamp>/raw/zymo_mc/hymet/eval/contigs_per_rank.tsv`
 
 Key numbers (current run):
 
@@ -75,23 +75,40 @@ bin/hymet case --manifest case/manifest_gut.tsv --threads 8 --cache-root case/da
 
 Outputs:
 
-- Predictions: `case/out/gut_case/hymet/`
+- Predictions: `results/cases/canonical/run_<timestamp>/raw/gut_case/hymet/`
 - No truth metrics (manifest has empty truth columns). Use cross-tool comparisons or MetaPhlAn (requires larger RAM) if a proxy check is needed.
 
 ### 2.3 Visual Summary
 
-![HYMET runtime and memory](../results/case/fig_case_runtime.png)
+![HYMET runtime and memory](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_runtime.png)
 
-![Top taxa per sample](../results/case/fig_case_top_taxa_panels.png)
+![Top taxa per sample](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_top_taxa_panels.png)
 
-![Top taxon overlap heatmap](../results/case/fig_case_top_taxa_heatmap.png)
+![Top taxon overlap heatmap](../results/cases/canonical/run_20251026T173406Z/figures/fig_case_top_taxa_heatmap.png)
+
+### 2.4 Automation & figure regeneration
+
+Run every bundled suite (canonical + gut + zymo) with a single command:
+
+```bash
+case/run_cases_full.sh --threads 16          # accepts --suite to limit the run, --dry-run to preview
+```
+
+The script publishes into `results/cases/<suite>/run_<timestamp>/`, executes `case/plot_case.py` for the per-sample figures, and refreshes the shared runtime/memory charts with:
+
+```bash
+python bench/plot/make_figures.py \
+  --bench-root bench \
+  --tables results/cases/<suite>/run_<timestamp>/tables \
+  --outdir results/cases/<suite>/run_<timestamp>/figures
+```
 
 ## 3. Database Ablation
 
 Current run (with default 5 000-genome reference) produced no removals; the target TaxIDs do not exist in that FASTA. As a result, the tables are still headers only:
 
-- `case/ablation_summary.tsv`
-- `case/ablation_eval_summary.tsv`
+- `results/ablation/canonical/run_<timestamp>/raw/ablation_summary.tsv`
+- `results/ablation/canonical/run_<timestamp>/raw/ablation_eval_summary.tsv`
 
 ### Recommended reproduction (curated Zymo panel)
 
@@ -116,11 +133,11 @@ Current run (with default 5 000-genome reference) produced no removals; the ta
     --threads 4
    ```
 
-   Outputs after the curated-panel run:
-   - `case/ablation/ablation_summary.tsv` – species/genus/family retention stays at 100 % for levels 0, 0.5, and 1.0 (1044 contigs classified).
-   - `case/ablation_eval_summary.tsv` – species F1 = 100 % at every ablation level; genus F1 = 80 %; superkingdom precision/recall = 33/50 reflecting taxid differences.
-   - Per-level details under `case/ablation/zymo_mc/level_*/hymet/eval/` (profile + contig accuracy TSVs).
-   - Figures: `case/ablation/figures/`
+   Outputs after the curated-panel run (default suite `results/ablation/canonical/run_<timestamp>/`):
+   - `raw/ablation_summary.tsv` – species/genus/family retention stays at 100 % for levels 0, 0.5, and 1.0 (1044 contigs classified).
+   - `raw/ablation_eval_summary.tsv` – species F1 = 100 % at every ablation level; genus F1 = 80 %; superkingdom precision/recall = 33/50 reflecting taxid differences.
+   - Per-level details under `raw/zymo_mc/level_*/hymet/eval/` (profile + contig accuracy TSVs).
+   - Figures: `figures/fig_ablation_*.png`
 
 ## 4. Preloading the Curated Zymo Reference
 
@@ -146,8 +163,8 @@ This produces Zymo results aligned with the ground truth.
 
 **Generated files of interest**
 
-- `case/out/zymo_mc/hymet/*` – HYMET outputs + evaluation against synthesized truth
-- `case/out/gut_case/hymet/*` – HYMET outputs for the MGnify stool sample
-- `case/ablation/*` – curated ablation runs with per-level HYMET outputs and evaluation under `hymet/eval/`.
+- `results/cases/<suite>/run_<timestamp>/raw/<sample>/hymet/*` – HYMET outputs + evaluation against synthesized or proxy truth
+- `results/cases/<suite>/run_<timestamp>/figures/*` – Case-study runtime/taxa visualisations
+- `results/ablation/<suite>/run_<timestamp>/raw/<sample>/level_*/hymet/*` – Ablation runs with per-level HYMET outputs and evaluation under `hymet/eval/`.
 
 All commands above assume working directory `HYMET/case` unless noted otherwise. Adjust `THREADS`, `CACHE_ROOT`, and `FORCE_DOWNLOAD` as needed for your environment.

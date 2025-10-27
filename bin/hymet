@@ -33,9 +33,15 @@ def command_run(args) -> None:
     repo_root: Path = args.repo_root
     env = os.environ.copy()
     env["ROOT"] = str(repo_root)
-    env["INPUT_FASTA"] = str(Path(args.contigs).resolve())
+    if args.contigs:
+        env["INPUT_MODE"] = "contigs"
+        env["INPUT_FASTA"] = str(Path(args.contigs).resolve())
+    else:
+        env["INPUT_MODE"] = "reads"
+        env["INPUT_READS"] = str(Path(args.reads).resolve())
     env["OUTDIR"] = str(Path(args.out).resolve())
-    env["THREADS"] = str(args.threads)
+    if args.threads is not None:
+        env["THREADS"] = str(args.threads)
     if args.cand_max is not None:
         env["CAND_MAX"] = str(args.cand_max)
     if args.species_dedup:
@@ -50,6 +56,7 @@ def command_run(args) -> None:
 def command_bench(args) -> None:
     bench_root: Path = args.bench_root
     env = os.environ.copy()
+    env["BENCH_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)
@@ -65,6 +72,8 @@ def command_bench(args) -> None:
         cmd.append("--no-build")
     if args.resume:
         cmd.append("--resume")
+    if getattr(args, "no_publish", False):
+        cmd.append("--no-publish")
     if args.extra:
         cmd.extend(args.extra)
     run_command(cmd, cwd=bench_root, env=env, dry_run=args.dry_run)
@@ -73,6 +82,7 @@ def command_bench(args) -> None:
 def command_case(args) -> None:
     case_root: Path = args.case_root
     env = os.environ.copy()
+    env["CASE_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)
@@ -90,6 +100,7 @@ def command_case(args) -> None:
 def command_ablation(args) -> None:
     case_root: Path = args.case_root
     env = os.environ.copy()
+    env["CASE_CALLER_PWD"] = str(Path.cwd().resolve())
     if args.threads is not None:
         env["THREADS"] = str(args.threads)
     add_common_env(args, env)
@@ -139,12 +150,108 @@ def command_legacy(args) -> None:
     run_command(cmd, cwd=repo_root, env=None, dry_run=args.dry_run)
 
 
+def command_artifacts(args) -> None:
+    python_cmd = sys.executable or "python"
+    bench_root: Path = args.bench_root
+    case_root: Path = args.case_root
+
+    bench_out = bench_root / "out"
+    if bench_out.is_dir():
+        run_command(
+            [python_cmd, str(bench_root / "aggregate_metrics.py"), "--bench-root", str(bench_root), "--outdir", "out"],
+            cwd=bench_root,
+            dry_run=args.dry_run,
+        )
+        run_command(
+            [python_cmd, str(bench_root / "plot" / "make_figures.py"), "--bench-root", str(bench_root), "--outdir", "out"],
+            cwd=bench_root,
+            dry_run=args.dry_run,
+        )
+    else:
+        print("[hymet] bench/out/ missing; skipping CAMI aggregation")
+
+    case_out = case_root / "out"
+    case_cmd: Optional[List[str]] = None
+    if case_out.is_dir():
+        case_cmd = [python_cmd, str(case_root / "plot_case.py")]
+    else:
+        results_root = case_root.parent / "results" / "cases"
+        candidates = []
+        if results_root.is_dir():
+            for suite_dir in results_root.iterdir():
+                if not suite_dir.is_dir():
+                    continue
+                for run_dir in suite_dir.iterdir():
+                    if run_dir.is_dir() and run_dir.name.startswith("run_"):
+                        candidates.append(run_dir)
+        if candidates:
+            latest = sorted(candidates, key=lambda p: p.name)[-1]
+            raw_dir = latest / "raw"
+            figures_dir = latest / "figures"
+            if raw_dir.is_dir():
+                case_cmd = [
+                    python_cmd,
+                    str(case_root / "plot_case.py"),
+                    "--case-root",
+                    str(raw_dir),
+                    "--figures-dir",
+                    str(figures_dir),
+                ]
+    if case_cmd:
+        run_command(case_cmd, cwd=case_root, dry_run=args.dry_run)
+    else:
+        print("[hymet] No case-study outputs detected; skipping case-study figures")
+
+    summary_path = case_root / "ablation_summary.tsv"
+    if summary_path.is_file():
+        eval_path = case_root / "ablation_eval_summary.tsv"
+        outdir = case_root / "ablation" / "figures"
+        cmd = [
+            python_cmd,
+            str(case_root / "plot_ablation.py"),
+            "--summary",
+            str(summary_path),
+            "--outdir",
+            str(outdir),
+        ]
+        if eval_path.is_file():
+            cmd.extend(["--eval", str(eval_path)])
+        run_command(cmd, cwd=case_root, dry_run=args.dry_run)
+    else:
+        print("[hymet] case/ablation_summary.tsv missing; skipping ablation figures")
+
+
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--threads", type=int, help="Thread count to pass to HYMET")
     parser.add_argument("--cache-root", help="Override cache root (CACHE_ROOT)")
     parser.add_argument("--force-download", action="store_true", help="Set FORCE_DOWNLOAD=1 for HYMET runs")
     parser.add_argument("--keep-work", action="store_true", help="Set KEEP_HYMET_WORK=1 to retain intermediates")
     parser.add_argument("--dry-run", action="store_true", help="Show commands without executing them")
+
+
+def git_version(repo_root: Path) -> str:
+    try:
+        # Prefer git metadata when available (source checkout)
+        commit = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        if commit:
+            return f"{commit}{'-dirty' if dirty else ''}"
+    except Exception:
+        pass
+    # Fallback to environment or unknown
+    env_ver = os.environ.get("HYMET_VERSION", "").strip()
+    return env_ver or "unknown"
+
+
+def command_version(args) -> None:
+    repo_root: Path = getattr(args, "repo_root", Path.cwd())
+    print(git_version(repo_root))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -155,8 +262,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    ver_parser = subparsers.add_parser("version", help="Print HYMET version information")
+    ver_parser.set_defaults(func=command_version)
+
     run_parser = subparsers.add_parser("run", help="Run HYMET on a single sample")
-    run_parser.add_argument("--contigs", required=True, help="Input contigs FASTA")
+    input_group = run_parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--contigs", help="Input contigs FASTA")
+    input_group.add_argument("--reads", help="Input reads FASTQ/FASTA")
     run_parser.add_argument("--out", required=True, help="Output directory")
     run_parser.add_argument("--cand-max", type=int, help="Maximum Mash candidates (CAND_MAX)")
     run_parser.add_argument("--species-dedup", action="store_true", help="Enable species-level candidate deduplication")
@@ -170,6 +282,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench_parser.add_argument("--max-samples", type=int, help="Limit number of samples processed")
     bench_parser.add_argument("--no-build", action="store_true", help="Skip database build step")
     bench_parser.add_argument("--resume", action="store_true", help="Resume without clearing runtime log")
+    bench_parser.add_argument("--no-publish", action="store_true", help="Skip publishing under results/")
     bench_parser.add_argument("extra", nargs=argparse.REMAINDER, help="Extra args forwarded to run_all_cami.sh")
     add_common_arguments(bench_parser)
     bench_parser.set_defaults(func=command_bench)
@@ -207,6 +320,10 @@ def build_parser() -> argparse.ArgumentParser:
     legacy_parser.add_argument("legacy_args", nargs=argparse.REMAINDER, help="Arguments passed to main.pl")
     legacy_parser.add_argument("--dry-run", action="store_true", help="Show command without executing it")
     legacy_parser.set_defaults(func=command_legacy)
+
+    artifacts_parser = subparsers.add_parser("artifacts", help="Regenerate benchmark and case-study artefacts")
+    artifacts_parser.add_argument("--dry-run", action="store_true", help="Show commands without executing them")
+    artifacts_parser.set_defaults(func=command_artifacts)
 
     return parser
 

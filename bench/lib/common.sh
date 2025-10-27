@@ -6,6 +6,8 @@ if [[ -n "${BENCH_COMMON_SOURCED:-}" ]]; then
 fi
 BENCH_COMMON_SOURCED=1
 
+: "${BENCH_CALLER_PWD:=$(pwd -P)}"
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -17,6 +19,9 @@ fi
 _bench__dir="$(cd "$(dirname "${_bench__this}")" && pwd)"
 export BENCH_ROOT="$(cd "${_bench__dir}/.." && pwd)"
 export HYMET_ROOT="$(cd "${BENCH_ROOT}/.." && pwd)"
+if [[ -z "${TAXONKIT_DB:-}" && -d "${HYMET_ROOT}/taxonomy_files" ]]; then
+  export TAXONKIT_DB="${HYMET_ROOT}/taxonomy_files"
+fi
 
 log(){ printf '[%(%F %T)T] %s\n' -1 "$*"; }
 die(){ log "ERROR: $*"; exit 1; }
@@ -24,19 +29,63 @@ die(){ log "ERROR: $*"; exit 1; }
 ensure_dir(){
   local path="$1"
   mkdir -p "${path}"
+  if [[ -d "${path}" ]]; then
+    # Make it discoverable by external tools that look up outputs by env
+    chmod 755 "${path}" 2>/dev/null || true
+  fi
 }
 
 resolve_path(){
-  local input="$1"
-  python3 - "$input" "$BENCH_ROOT" <<'PY'
-import os, sys
-value, bench_root = sys.argv[1], sys.argv[2]
+  local input="${1:-}"
+  local base="${2:-${BENCH_CALLER_PWD}}"
+  python3 - "$input" "$base" <<'PY'
+import os, pathlib, sys
+value, base = sys.argv[1], sys.argv[2]
 if not value:
     print("", end="")
-elif os.path.isabs(value):
-    print(os.path.normpath(value), end="")
-else:
-    print(os.path.normpath(os.path.join(bench_root, value)), end="")
+    raise SystemExit
+value = os.path.expanduser(value)
+path = pathlib.Path(value)
+if path.is_absolute():
+    print(str(path.resolve()), end="")
+    raise SystemExit
+base_path = pathlib.Path(base or ".").resolve()
+print(str((base_path / path).resolve()), end="")
+PY
+}
+
+normalize_metadata_json(){
+  local json_path="$1"
+  local base_dir="${2:-$(dirname "$1")}"
+  if [[ ! -f "${json_path}" ]]; then
+    return 0
+  fi
+  python3 - "$json_path" "$base_dir" <<'PY'
+import json, os, sys
+
+json_path, base_dir = sys.argv[1:3]
+base_dir = os.path.abspath(base_dir)
+
+def convert(value):
+    if isinstance(value, dict):
+        return {key: convert(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [convert(item) for item in value]
+    if isinstance(value, str) and os.path.isabs(value):
+        try:
+            return os.path.relpath(value, base_dir)
+        except ValueError:
+            return value
+    return value
+
+with open(json_path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+data = convert(data)
+
+with open(json_path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2, sort_keys=True)
+    handle.write("\n")
 PY
 }
 
@@ -53,7 +102,7 @@ append_runtime_header(){
   if [[ ! -s "${path}" ]]; then
     ensure_dir "$(dirname "${path}")"
     cat <<'EOF' >"${path}"
-sample	tool	stage	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb
+sample	tool	mode	stage	started_at	finished_at	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb	command	exit_code
 EOF
   fi
 }

@@ -8,3 +8,6 @@ __pycache__/
 *.log
 *.stamp
 refsets/
+syslog
+bin/diamond
+cami_*/
