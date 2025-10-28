@@ -23,7 +23,11 @@ export PYTHONHASHSEED="0"
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${ROOT:-${SCRIPT_ROOT}}"
 
+# Input selection (contigs vs reads)
+INPUT_MODE="${INPUT_MODE:-contigs}"
 INPUT_FASTA="${INPUT_FASTA:-/data/cami/sample_0.fna}"
+INPUT_READS="${INPUT_READS:-}"
+export INPUT_MODE INPUT_FASTA INPUT_READS
 OUTDIR="${OUTDIR:-/data/hymet_out/sample_0}"
 THREADS="${THREADS:-8}"
 CAND_MAX="${CAND_MAX:-5000}"      # max candidates after Mash
@@ -51,7 +55,19 @@ mkdir -p "$TMPDIR"
 cd "$ROOT" || die "cannot cd to $ROOT"
 
 # ---- checks ----
-[ -s "$INPUT_FASTA" ] || die "missing FASTA $INPUT_FASTA"
+case "$INPUT_MODE" in
+  contigs)
+    [ -n "$INPUT_FASTA" ] || die "INPUT_MODE=contigs but INPUT_FASTA is unset"
+    [ -s "$INPUT_FASTA" ] || die "missing contigs FASTA $INPUT_FASTA"
+    ;;
+  reads)
+    [ -n "$INPUT_READS" ] || die "INPUT_MODE=reads but INPUT_READS is unset"
+    [ -s "$INPUT_READS" ] || die "missing reads file $INPUT_READS"
+    ;;
+  *)
+    die "Unsupported INPUT_MODE '$INPUT_MODE' (expected 'contigs' or 'reads')"
+    ;;
+esac
 for f in data/sketch1.msh data/sketch2.msh data/sketch3.msh data/detailed_taxonomy.tsv data/taxonomy_hierarchy.tsv \
          scripts/mash.sh scripts/minimap2.sh scripts/classification_cami.py; do
   [ -s "$f" ] || die "missing $f"
@@ -68,7 +84,19 @@ WORKDIR="$OUTDIR/work"
 rm -rf output 2>/dev/null || true
 mkdir -p "$OUTDIR" "$WORKDIR" "$OUTDIR/logs" input cache data/downloaded_genomes
 ln -s "$WORKDIR" output 2>/dev/null || true
-cp -f "$INPUT_FASTA" input/sample_0.fna
+
+# ensure stale inputs are cleared before staging
+rm -f input/* 2>/dev/null || true
+
+# Stage input under input/
+case "$INPUT_MODE" in
+  contigs)
+    cp -f "$INPUT_FASTA" "input/sample_0.fna"
+    ;;
+  reads)
+    cp -f "$INPUT_READS" "input/sample_0.fastq"
+    ;;
+esac
 
 # ---- deps ----
 command -v minimap2 >/dev/null || micromamba install -y -p /opt/conda -c bioconda minimap2
