@@ -1,0 +1,7 @@
+{
+  "contig_run": "/mnt/HC_Volume_103721442/HYMET/results/cami/mode_contigs/run_20251028T233011Z",
+  "read_run": "/mnt/HC_Volume_103721442/HYMET/results/cami/mode_reads/run_20251029T001122Z",
+  "comparison_suite": "cami/reads_vs_contigs",
+  "generated": "20251029T001135Z",
+  "threads": 8
+}
