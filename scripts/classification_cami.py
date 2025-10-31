@@ -349,9 +349,15 @@ def main_process(paf_file, taxonomy_file, hierarchy_file, output_file, processes
 
     tasks = list(query_map.items())
     results = []
-    with Pool(processes, initializer=_init_worker, initargs=(tax_map, hier_map, ref_abund)) as pool:
-        for res in pool.imap_unordered(_process_one, tasks, chunksize=200):
-            results.append(res)
+    if processes <= 1:
+        logging.info("Running classification in single-process mode.")
+        _init_worker(tax_map, hier_map, ref_abund)
+        for task in tasks:
+            results.append(_process_one(task))
+    else:
+        with Pool(processes, initializer=_init_worker, initargs=(tax_map, hier_map, ref_abund)) as pool:
+            for res in pool.imap_unordered(_process_one, tasks, chunksize=200):
+                results.append(res)
 
     classified = sum(1 for _, lin, tid, _, _ in results if lin != "Unknown" and tid != "Unknown")
     resdict = {q: (lin, lvl, tid, conf) for q, lin, lvl, tid, conf in results}

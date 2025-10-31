@@ -15,21 +15,41 @@ def load_summary(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path, sep="\t")
     if "level_fraction" in df.columns:
         df = df.sort_values("level_fraction")
+    # Break out incremental fallback contributions for clearer plots
+    df["species_pct"] = df["assigned_species_pct"]
+    df["genus_only_pct"] = (df["assigned_genus_pct"] - df["assigned_species_pct"]).clip(lower=0)
+    df["family_only_pct"] = (df["assigned_family_pct"] - df["assigned_genus_pct"]).clip(lower=0)
+    df["higher_pct"] = df["assigned_higher_pct"].clip(lower=0)
     return df
+
+
+def _active_categories(df: pd.DataFrame) -> List[tuple[str, pd.Series, str]]:
+    categories = [
+        ("Species/strain", df["species_pct"], "#1f77b4"),
+        ("Genus fallback", df["genus_only_pct"], "#9467bd"),
+        ("Family fallback", df["family_only_pct"], "#ff7f0e"),
+        ("Higher (root)", df["higher_pct"], "#2ca02c"),
+    ]
+    if df["genus_only_pct"].max() <= 1e-6:
+        categories = [c for c in categories if c[0] != "Genus fallback"]
+    if df["family_only_pct"].max() <= 1e-6:
+        categories = [c for c in categories if c[0] != "Family fallback"]
+    return categories
 
 
 def plot_rank_fallback(df: pd.DataFrame, out_path: Path) -> None:
     plt.figure(figsize=(8, 4.5))
     x = df["level_fraction"]
-    plt.plot(x, df["assigned_species_pct"], marker="o", label="Species")
-    plt.plot(x, df["assigned_genus_pct"], marker="o", label="≤ Genus")
-    plt.plot(x, df["assigned_family_pct"], marker="o", label="≤ Family")
-    plt.plot(x, df["assigned_higher_pct"], marker="o", label="Higher ranks")
+    cats = _active_categories(df)
+    labels = [label for label, _, _ in cats]
+    data = [series for _, series, _ in cats]
+    colors = [color for _, _, color in cats]
+    plt.stackplot(x, data, labels=labels, colors=colors, alpha=0.85)
     plt.xlabel("Fraction of dominant taxa removed")
     plt.ylabel("Assignments retained (%)")
     plt.title("Rank fallback under database ablation")
-    plt.legend()
-    plt.grid(True, linestyle="--", alpha=0.4)
+    plt.legend(loc="upper right")
+    plt.grid(True, linestyle="--", alpha=0.35)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.tight_layout()
     plt.savefig(out_path, dpi=200)
@@ -39,15 +59,19 @@ def plot_rank_fallback(df: pd.DataFrame, out_path: Path) -> None:
 def plot_rank_stack(df: pd.DataFrame, out_path: Path) -> None:
     plt.figure(figsize=(8, 4.5))
     levels = df["level_label"].astype(str)
-    species = df["assigned_species_pct"]
-    genus = df["assigned_genus_pct"] - df["assigned_species_pct"]
-    family = df["assigned_family_pct"] - df["assigned_genus_pct"]
-    higher = df["assigned_higher_pct"]
-    bottom = species
-    plt.bar(levels, species, label="Species")
-    plt.bar(levels, genus, bottom=species, label="Genus (fallback)")
-    plt.bar(levels, family, bottom=species + genus, label="Family (fallback)")
-    plt.bar(levels, higher, bottom=species + genus + family, label="Higher ranks")
+    species = df["species_pct"]
+    bottom = species.copy()
+    plt.bar(levels, species, label="Species/strain", color="#1f77b4")
+    if df["genus_only_pct"].max() > 1e-6:
+        genus = df["genus_only_pct"]
+        plt.bar(levels, genus, bottom=bottom, label="Genus fallback", color="#9467bd")
+        bottom = bottom + genus
+    if df["family_only_pct"].max() > 1e-6:
+        family = df["family_only_pct"]
+        plt.bar(levels, family, bottom=bottom, label="Family fallback", color="#ff7f0e")
+        bottom = bottom + family
+    higher = df["higher_pct"]
+    plt.bar(levels, higher, bottom=bottom, label="Higher (root)", color="#2ca02c")
     plt.xlabel("Ablation level (%)")
     plt.ylabel("Assignments (%)")
     plt.title("Assignment distribution by rank")
