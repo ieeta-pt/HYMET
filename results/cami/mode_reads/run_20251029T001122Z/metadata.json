@@ -1,0 +1,16 @@
+{
+  "scenario": "cami",
+  "suite": "mode_reads",
+  "run_id": "run_20251029T001122Z",
+  "timestamp": "20251029T001122Z",
+  "manifest": "/mnt/HC_Volume_103721442/HYMET/bench/cami_manifest.tsv",
+  "threads": 8,
+  "tools": [
+    "hymet_reads"
+  ],
+  "modes": [
+    "contigs"
+  ],
+  "source": "bench/run_all_cami.sh",
+  "git_commit": "f549e90574ee57779fc6339c056d394594936435"
+}
