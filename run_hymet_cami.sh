@@ -38,6 +38,9 @@ SPLIT_IDX="${SPLIT_IDX:-2g}"      # minimap2 -I chunk size for lower RAM
 MASH_THRESH="${MASH_THRESH:-0.9}" # Mash screen threshold
 FORCE_DOWNLOAD="${FORCE_DOWNLOAD:-0}"
 CACHE_ROOT="${CACHE_ROOT:-data/downloaded_genomes/cache}"
+# Optional override: if set, force HYMET to use this FASTA/MMI instead of the cache-derived path
+CACHE_FASTA_OVERRIDE="${CACHE_FASTA_OVERRIDE:-}"
+CACHE_TAX_OVERRIDE="${CACHE_TAX_OVERRIDE:-}"
 export PATH="/opt/conda/bin:$PATH"
 export TMPDIR="${TMPDIR:-/data/tmp}"
 export OMP_NUM_THREADS="$THREADS"
@@ -175,19 +178,30 @@ ensure_cache_dirs "${CACHE_DL}"
 log "cache key ${CACHE_KEY} → ${CACHE_DIR}"
 
 # 3) download refs + concat
-if [ "${FORCE_DOWNLOAD}" -eq 1 ]; then
+if [ "${FORCE_DOWNLOAD}" -eq 1 ] && [ -z "${CACHE_FASTA_OVERRIDE}" ]; then
   log "FORCE_DOWNLOAD=1 → clearing cached reference"
   rm -f "${CACHE_FASTA}" "${CACHE_TAX}" "${CACHE_MMI}"
 fi
-if [ ! -s "${CACHE_FASTA}" ]; then
-  log "downloadDB.py (cache ${CACHE_KEY})"
-  python3 scripts/downloadDB.py \
-    output/selected_genomes.txt \
-    "${CACHE_DIR}" \
-    "${CACHE_TAX}" \
-    "${CACHE_DL}"
+# Optional override of cache FASTA/MMI for ablation runs
+if [ -n "${CACHE_FASTA_OVERRIDE}" ]; then
+  # Use caller-provided FASTA/taxonomy and a colocated index
+  CACHE_FASTA="${CACHE_FASTA_OVERRIDE}"
+  CACHE_MMI="$(dirname "${CACHE_FASTA}")/reference.mmi"
+  if [ -n "${CACHE_TAX_OVERRIDE}" ]; then
+    CACHE_TAX="${CACHE_TAX_OVERRIDE}"
+  fi
+  log "CACHE_FASTA override active → ${CACHE_FASTA}"
 else
-  log "cache hit for ${CACHE_KEY}; reusing ${CACHE_FASTA}"
+  if [ ! -s "${CACHE_FASTA}" ]; then
+    log "downloadDB.py (cache ${CACHE_KEY})"
+    python3 scripts/downloadDB.py \
+      output/selected_genomes.txt \
+      "${CACHE_DIR}" \
+      "${CACHE_TAX}" \
+      "${CACHE_DL}"
+  else
+    log "cache hit for ${CACHE_KEY}; reusing ${CACHE_FASTA}"
+  fi
 fi
 mkdir -p "${ROOT}/data/downloaded_genomes"
 mkdir -p "${ROOT}/data"
@@ -208,7 +222,7 @@ python3 scripts/classification_cami.py \
   --taxonomy data/detailed_taxonomy.tsv \
   --hierarchy data/taxonomy_hierarchy.tsv \
   --output output/classified_sequences.tsv \
-  --processes "$THREADS" || true
+  --processes "${HYMET_CLASSIFY_PROCESSES:-$THREADS}" || true
 
 ROWS=$(wc -l < output/classified_sequences.tsv 2>/dev/null || echo 0)
 if [ "$ROWS" -lt 2 ]; then

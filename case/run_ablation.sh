@@ -91,6 +91,8 @@ else
 fi
 
 RUNTIME_TSV="${OUT_ROOT}/runtime_memory.tsv"
+# Use override mode to avoid mutating global cache or symlinked FASTA
+USE_OVERRIDE=1
 
 [[ -s "${SEQMAP}" ]] || die "Sequence → taxid map missing: ${SEQMAP}"
 [[ -s "${BASE_FASTA}" ]] || die "Reference FASTA missing: ${BASE_FASTA}"
@@ -127,6 +129,29 @@ done < "${MANIFEST}"
 ABLATE_DIR="${OUT_ROOT}/refsets"
 ensure_dir "${ABLATE_DIR}"
 
+# Derive a per-run seqid→taxid map from the cache taxonomy if the provided map
+# does not match the current reference. This guarantees identifier alignment.
+CACHE_TAX_PATH="$(dirname "${BASE_FASTA}")/detailed_taxonomy.tsv"
+DERIVED_SEQMAP="${ABLATE_DIR}/seqid2taxid.tsv"
+if [[ -s "${CACHE_TAX_PATH}" ]]; then
+  # Build a fresh seqmap aligned to the BASE_FASTA identifiers
+  python3 - "${CACHE_TAX_PATH}" "${DERIVED_SEQMAP}" <<'PY'
+import csv, sys
+csv.field_size_limit(10**8)
+src, dest = sys.argv[1:3]
+with open(src, newline='') as fh, open(dest, 'w', newline='') as out:
+    r = csv.DictReader(fh, delimiter='\t')
+    for row in r:
+        taxid = (row.get('TaxID') or '').strip()
+        ids = (row.get('Identifiers') or '')
+        for seq in ids.split(';'):
+            seq = seq.strip()
+            if seq and taxid:
+                out.write(f"{seq}\t{taxid}\n")
+PY
+  SEQMAP="${DERIVED_SEQMAP}"
+fi
+
 python3 "${CASE_ROOT}/ablate_db.py" \
   --fasta "${BASE_FASTA}" \
   --seqmap "${SEQMAP}" \
@@ -152,17 +177,19 @@ level_label	level_fraction	rank	F1	Precision	Recall	L1_total_variation_pctpts	Br
 EOF
 fi
 
-backup="${BASE_FASTA}.case_backup"
-if [[ ! -f "${backup}" ]]; then
-  cp "${BASE_FASTA}" "${backup}"
-fi
-
-restore_fastas(){
-  if [[ -f "${backup}" ]]; then
-    mv -f "${backup}" "${BASE_FASTA}"
+# In override mode, we never touch BASE_FASTA; skip backup/restore
+if [[ "${USE_OVERRIDE}" -ne 1 ]]; then
+  backup="${BASE_FASTA}.case_backup"
+  if [[ ! -f "${backup}" ]]; then
+    cp "${BASE_FASTA}" "${backup}"
   fi
-}
-trap restore_fastas EXIT
+  restore_fastas(){
+    if [[ -f "${backup}" ]]; then
+      mv -f "${backup}" "${BASE_FASTA}"
+    fi
+  }
+  trap restore_fastas EXIT
+fi
 
 for level_path in "${ABLATE_DIR}"/combined_subset.ablate*.fasta; do
   level_file="$(basename "${level_path}")"
@@ -176,17 +203,24 @@ PY
 )
 
   log "[ablation] Level ${level_label} (${level_fraction})"
-  # Replace reference FASTA with the ablated version (except 000)
+  # Select FASTA to use this level (original for 000, ablated otherwise)
+  # For level 000, use the original reference; when override mode is enabled,
+  # treat BASE_FASTA as the original (read-only) baseline.
+  REF_THIS_LEVEL="${BASE_FASTA}"
   if [[ "${level_label}" != "000" ]]; then
-    cp "${level_path}" "${BASE_FASTA}"
-  else
-    cp "${backup}" "${BASE_FASTA}"
+    REF_THIS_LEVEL="${level_path}"
   fi
+  # Proactively drop any colocated index next to the ablated FASTA to force rebuild
+  rm -f "$(dirname "${REF_THIS_LEVEL}")/reference.mmi" || true
 
   level_out="${OUT_ROOT}/${SAMPLE_ID}/level_${level_label}"
   hymet_out="${level_out}/hymet"
   ensure_dir "${hymet_out}"
 
+  # Use cache override so HYMET maps against the ablated FASTA this level
+  CACHE_FASTA_OVERRIDE="${REF_THIS_LEVEL}" \
+  CACHE_TAX_OVERRIDE="${CACHE_TAX_PATH}" \
+  HYMET_CLASSIFY_PROCESSES=1 \
   THREADS="${THREADS}" "${MEASURE}" \
     --tool hymet \
     --sample "${SAMPLE_ID}_abl${level_label}" \
@@ -300,7 +334,9 @@ with open(summary_path, "a", newline="") as out:
 PY
 done
 
-restore_fastas
+if declare -f restore_fastas >/dev/null; then
+  restore_fastas
+fi
 
 PLOT_DIR="${FIGURES_DIR:-${OUT_ROOT}/figures}"
 python3 "${CASE_ROOT}/plot_ablation.py" \
