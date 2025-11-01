@@ -1,0 +1,6 @@
+level_label	level_fraction	total_classified	assigned_species_pct	assigned_genus_pct	assigned_family_pct	assigned_higher_pct
+000	0.0	72	75.00	75.00	75.00	25.00
+025	0.25	69	72.46	72.46	72.46	27.54
+050	0.5	71	73.24	73.24	73.24	26.76
+075	0.75	66	66.67	66.67	66.67	33.33
+100	1.0	62	64.52	64.52	64.52	35.48

@@ -1,0 +1,8 @@
+tool	rank	samples	mean_L1_total_variation_pctpts	mean_BrayCurtis_pct	mean_Precision_%	mean_Recall_%	mean_F1_%
+hymet	class	7	27.1295	27.1295	95.24	96.43	95.36
+hymet	family	7	31.7512	31.7512	89.58	90.79	89.44
+hymet	genus	7	41.6906	41.7940	82.02	82.72	80.77
+hymet	order	7	27.7560	27.7560	95.24	97.62	95.84
+hymet	phylum	7	12.3834	12.3834	93.57	95.24	93.51
+hymet	species	7	49.2679	49.2680	50.35	71.27	56.89
+hymet	superkingdom	7	51.8668	34.5798	69.05	95.24	79.05

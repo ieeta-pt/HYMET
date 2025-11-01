@@ -1,0 +1,11 @@
+sample	tool	stage	wall_seconds	user_seconds	sys_seconds	max_rss_gb	io_input_mb	io_output_mb
+zymo_mc_abl000	hymet	ablation_000	266.580	288.910	29.270	17.396	0.922	1.278
+zymo_mc_abl000	hymet	ablation_eval_000	17.880	20.450	2.490	1.083	0.000	0.000
+zymo_mc_abl025	hymet	ablation_025	261.880	285.230	29.870	17.400	0.411	1.262
+zymo_mc_abl025	hymet	ablation_eval_025	17.950	20.480	2.530	1.168	0.000	0.000
+zymo_mc_abl050	hymet	ablation_050	254.020	277.060	28.690	17.396	0.403	1.244
+zymo_mc_abl050	hymet	ablation_eval_050	19.700	22.590	2.570	1.129	0.000	0.000
+zymo_mc_abl075	hymet	ablation_075	255.810	277.720	28.740	17.396	0.383	1.193
+zymo_mc_abl075	hymet	ablation_eval_075	17.610	20.460	2.520	1.063	0.000	0.000
+zymo_mc_abl100	hymet	ablation_100	254.540	274.430	28.750	17.398	0.378	1.178
+zymo_mc_abl100	hymet	ablation_eval_100	18.560	20.830	2.500	1.124	0.000	0.000

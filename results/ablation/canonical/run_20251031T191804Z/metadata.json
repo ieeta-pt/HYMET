@@ -1,0 +1,15 @@
+{
+  "scenario": "ablation",
+  "suite": "canonical",
+  "run_id": "run_20251031T191804Z",
+  "timestamp": "20251031T191804Z",
+  "manifest": "/mnt/HC_Volume_103721442/HYMET/case/manifest.tsv",
+  "sample": "zymo_mc",
+  "taxa": "562,28901,1423,1639,1351,1280,1613,287,4932,5207",
+  "levels": "0,0.25,0.5,0.75,1.0",
+  "seqmap": "/mnt/HC_Volume_103721442/HYMET/results/ablation/canonical/run_20251031T191804Z/raw/refsets/seqid2taxid.tsv",
+  "base_fasta": "/mnt/HC_Volume_103721442/HYMET/data/downloaded_genomes/cache_bench/470b95d99a6a89b5e6c369f0621f65f4902bbdd5/combined_genomes.fasta",
+  "threads": 8,
+  "source": "case/run_ablation.sh",
+  "git_commit": "632174103df86f5cd5d62274cb2c10a35f31b380"
+}
